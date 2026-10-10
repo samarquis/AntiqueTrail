@@ -58,7 +58,6 @@ const readinessFailureCategories = new Set([
   'responseParseFailure',
   'httpFailure',
   'invalidResponse',
-  'readiness_exhausted',
 ])
 const readinessSafeErrorCodes = new Set([
   'ALPHA_AUTH_REQUIRED',
@@ -620,8 +619,8 @@ export async function waitForLocalServiceReadiness(
       Object.entries(categoryCounts)
         .filter(([, count]) => count > 0)
         .sort((left, right) => right[1] - left[1])[0] ?? []
-    if (run.users.length) tagReadinessFailure(error, 'readiness_exhausted')
-    else if (readinessFailureCategories.has(category)) tagReadinessFailure(error, category)
+    if (readinessFailureCategories.has(category)) tagReadinessFailure(error, category)
+    tagLocalStartupFailure(error, 'readiness_exhausted')
     throw error
   }
 }

@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   captureLocalStartupFailure,
   command,
+  getReadinessFailureMetadata,
   loopbackRequest,
   runAtLocalStartupStep,
   tagLocalStartupFailure,
@@ -279,6 +280,75 @@ test('catalog fetch errors expose only fixed categories, never injected error te
   })
   assert.deepEqual(diagnostic.httpStatusCounts, [])
   assert.equal(writes.join('').includes(sentinel), false)
+})
+
+test('readiness exhaustion keeps legacy categories and adds private startup provenance', async (t) => {
+  const writes = captureStderr(t)
+  for (const scenario of [
+    {
+      category: 'fetchFailure',
+      responseStatus: null,
+      fetcher: async () => {
+        throw new Error('PRIVATE_FETCH_ERROR')
+      },
+    },
+    {
+      category: 'responseParseFailure',
+      responseStatus: 200,
+      fetcher: async () => ({
+        ok: true,
+        status: 200,
+        json: async () => {
+          throw new Error('PRIVATE_PARSE_ERROR')
+        },
+      }),
+    },
+  ]) {
+    let calls = 0
+    const request = (route, options) =>
+      loopbackRequest('http://127.0.0.1:54321', route, {
+        ...options,
+        fetcher: async (...args) => {
+          calls++
+          return scenario.fetcher(...args)
+        },
+      })
+    const error = await waitForLocalServiceReadiness(
+      localRun(),
+      request,
+      undefined,
+      async () => {},
+    ).catch((failure) => failure)
+
+    assert.equal(error.message, 'Local catalog function did not become ready')
+    assert.equal(calls, 60)
+    assert.deepEqual(getReadinessFailureMetadata(error), {
+      category: scenario.category,
+      status: null,
+    })
+    assert.deepEqual(captureLocalStartupFailure({ startupStep: 'edge-readiness' }, error), {
+      step: 'edge-readiness',
+      category: 'readiness_exhausted',
+      httpStatus: null,
+      safeErrorCode: null,
+      transportCode: null,
+      commandExitCode: null,
+    })
+
+    const diagnostic = readReadinessDiagnostic(writes.splice(0))
+    assert.equal(diagnostic.categoryCounts[scenario.category], 60)
+    for (const key of ['first', 'firstHttp', 'last']) {
+      const record = diagnostic.failures[key]
+      if (scenario.responseStatus === null && key === 'firstHttp') {
+        assert.equal(record, null)
+        continue
+      }
+      assert.equal(record.category, scenario.category)
+      assert.equal(record.httpStatus, scenario.responseStatus)
+      assert.equal(record.servingState, 'unavailable')
+      assert.equal(record.servingExitCode, null)
+    }
+  }
 })
 
 test('catalog parse failures expose no private text', async (t) => {
@@ -961,4 +1031,31 @@ test('controlled startup checkpoints retain step and classify source identity mi
   )
   assert.equal(captureLocalStartupFailure(run, mismatch).step, 'source-identity')
   assert.equal(captureLocalStartupFailure(run, mismatch).category, 'identity_mismatch')
+
+  const portRun = {}
+  const portFailure = new Error('PRIVATE_PORT_PATH_AND_ERROR')
+  await assert.rejects(
+    Promise.resolve().then(() =>
+      runAtLocalStartupStep(portRun, 'port-config', () => {
+        throw portFailure
+      }),
+    ),
+    portFailure,
+  )
+  const projected = projectPrimaryFailure(
+    'local-services',
+    captureLocalStartupFailure(portRun, portFailure),
+  )
+  assert.deepEqual(projected, {
+    primaryFailureStage: 'local-services',
+    startupFailure: {
+      step: 'port-config',
+      category: 'unknown',
+      httpStatus: null,
+      safeErrorCode: null,
+      transportCode: null,
+      commandExitCode: null,
+    },
+  })
+  assert.doesNotMatch(JSON.stringify(projected), /PRIVATE_PORT_PATH_AND_ERROR/)
 })

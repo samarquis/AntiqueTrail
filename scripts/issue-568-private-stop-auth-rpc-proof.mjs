@@ -177,7 +177,9 @@ try {
     .update(local.fixtureIdentity)
     .update('issue-568-private-trip-fixture/v1')
     .digest('hex')
-  report.portMap = localPortMap(origin, local)
+  report.portMap = runAtLocalStartupStep(service.run, 'port-config', () =>
+    localPortMap(origin, local),
+  )
 
   stage = 'test-only-capability'
   const initialCapability = (
