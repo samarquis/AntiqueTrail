@@ -131,6 +131,69 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('5
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":91,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
  'P0001','invalid_nearby_input','out-of-range coordinates are denied');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request('bad',
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','gateway_request_invalid','malformed rate key is denied');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('3',64),
+ null,'99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','missing actor is denied');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('2',64),
+ '99000000-0000-4000-8000-000000000002',null,'nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','missing session is denied');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('1',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":"unexpected","p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','non-null area is denied');
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('0',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":"0","p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ 'P0001','invalid_nearby_input','string coordinate is denied');
+set local role identity_service;
+update app_private.account_registration_config set stage_receipt_id='99000000-0000-4000-8000-000000000099' where id=1;
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('a',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_evidence_invalid','mismatched ordinary stage receipt is denied');
+reset role;
+set local role identity_service;
+update app_private.account_registration_config set stage_receipt_id='99000000-0000-4000-8000-000000000031' where id=1;
+reset role;
+set local role identity_service;
+update app_private.registration_quarantine_latch set state='blocked',blocked_at=statement_timestamp() where id=1;
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('b',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_evidence_invalid','closed quarantine latch denies ordinary shopper');
+reset role;
+set local role identity_service;
+update app_private.registration_quarantine_latch set state='open',blocked_at=null where id=1;
+update app_private.profiles set status='deletion_scheduled',deletion_due_at=statement_timestamp()+interval '1 day'
+where user_id='99000000-0000-4000-8000-000000000002';
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','inactive profile is denied');
+reset role;
+set local role identity_service;
+update app_private.profiles set status='active',deletion_due_at=null where user_id='99000000-0000-4000-8000-000000000002';
+update app_private.role_grants set state='revoked',revoked_at=statement_timestamp()
+where subject_user_id='99000000-0000-4000-8000-000000000002' and role='shopper' and store_id is null;
+reset role;
+set local role public_catalog_gateway;
+select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('d',64),
+ '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
+ '42501','synthetic_catalog_forbidden','missing active global Shopper grant is denied');
+reset role;
 set local role identity_service;
 update app_private.environment_stage set stage='private_beta' where id=1;
 reset role;
