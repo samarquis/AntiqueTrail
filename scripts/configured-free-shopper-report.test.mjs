@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   browserReport,
+  classifyConfiguredShopperRoute,
   projectSafeBrowserFailure,
   recordCleanupFailure,
 } from './configured-free-shopper-report.mjs'
@@ -70,20 +71,13 @@ const signoutTitle =
   'sibling context, sign-out, and account switch deny private trip reads and writes'
 const routeObservationType = 'configured-route-observation-v1'
 
-function observation(checkpoint, overrides = {}) {
+function observation(checkpoint, routeClass = 'trip-plan', repetition = 1) {
   return {
     version: 1,
     checkpoint,
-    capture: 'complete',
-    routeClass: 'trip-plan',
-    signInVisible: false,
-    expectedHeadingVisible: true,
-    unavailableHeadingVisible: false,
-    tripNameCount: 1,
-    tripNameVisible: true,
-    valueMatches: true,
-    ...(checkpoint === 'signout-return-plan' ? { repetition: 1 } : {}),
-    ...overrides,
+    ...(checkpoint === 'signout-return-plan' ? { repetition } : {}),
+    capture: 'route-only',
+    routeClass,
   }
 }
 
@@ -171,15 +165,9 @@ test('failure projector parses only the leading matcher signature', () => {
 })
 
 test('final-result observations survive only for the exact failing case and project', () => {
-  const keyed = observation('keyed-return-heading', {
-    routeClass: 'add-to-trip',
-    expectedHeadingVisible: false,
-    tripNameCount: 0,
-    tripNameVisible: null,
-    valueMatches: null,
-  })
+  const keyed = observation('keyed-return-heading', 'add-to-trip')
   const signoutInitial = observation('signout-initial-plan')
-  const signoutReturn = observation('signout-return-plan', { repetition: 2 })
+  const signoutReturn = observation('signout-return-plan', 'trip-plan', 2)
   for (const [name, checkpoint, value] of [
     [keyedTitle, 'keyed-return-heading', keyed],
     [signoutTitle, 'signout-initial-plan', signoutInitial],
@@ -235,6 +223,210 @@ test('final-result observations survive only for the exact failing case and proj
   assert.equal('failure' in passed.checks[0], false)
 })
 
+test('checkpoint supplies its matcher only when original matcher is unknown', () => {
+  const keyed = observation('keyed-return-heading', 'add-to-trip')
+  const keyedAnnotation = routeAnnotation(keyed)
+  const projectedUnknown = projectSafeBrowserFailure(
+    { assertion: undefined },
+    { name: keyedTitle, project: 'desktop', annotations: [keyedAnnotation] },
+  )
+  assert.equal(projectedUnknown.assertion, 'toBeVisible')
+  assert.deepEqual(projectedUnknown.observation, keyed)
+
+  const projectedConflict = projectSafeBrowserFailure(
+    { assertion: 'toHaveValue' },
+    { name: keyedTitle, project: 'desktop', annotations: [keyedAnnotation] },
+  )
+  assert.equal(projectedConflict.assertion, 'toHaveValue')
+  assert.equal('observation' in projectedConflict, false)
+
+  const signout = observation('signout-initial-plan')
+  const projectedKeyedMatch = projectSafeBrowserFailure(
+    { assertion: 'toBeVisible' },
+    { name: keyedTitle, project: 'desktop', annotations: [keyedAnnotation] },
+  )
+  assert.equal(projectedKeyedMatch.assertion, 'toBeVisible')
+  assert.deepEqual(projectedKeyedMatch.observation, keyed)
+
+  const projectedSignoutConflict = projectSafeBrowserFailure(
+    { assertion: 'toBeVisible' },
+    { name: signoutTitle, project: 'desktop', annotations: [routeAnnotation(signout)] },
+  )
+  assert.equal(projectedSignoutConflict.assertion, 'toBeVisible')
+  assert.equal('observation' in projectedSignoutConflict, false)
+
+  const projectedSignout = projectSafeBrowserFailure(
+    {},
+    { name: signoutTitle, project: 'phone', annotations: [routeAnnotation(signout)] },
+  )
+  assert.equal(projectedSignout.assertion, 'toHaveValue')
+  assert.deepEqual(projectedSignout.observation, signout)
+
+  const unavailable = { version: 1, checkpoint: 'signout-initial-plan', capture: 'unavailable' }
+  const projectedUnavailable = projectSafeBrowserFailure(
+    {},
+    { name: signoutTitle, project: 'desktop', annotations: [routeAnnotation(unavailable)] },
+  )
+  assert.equal(projectedUnavailable.assertion, 'toHaveValue')
+  assert.deepEqual(projectedUnavailable.observation, unavailable)
+
+  const projectedMalformed = projectSafeBrowserFailure(
+    {},
+    { name: signoutTitle, project: 'desktop', annotations: [routeAnnotation('not-json')] },
+  )
+  assert.equal('assertion' in projectedMalformed, false)
+  assert.equal('observation' in projectedMalformed, false)
+
+  for (const [name, assertion, checkpoint, annotationValue] of [
+    [keyedTitle, 'toHaveValue', 'keyed-return-heading', keyed],
+    [signoutTitle, 'toBeVisible', 'signout-initial-plan', signout],
+  ]) {
+    const failed = browserReport(
+      JSON.stringify(
+        failedBrowserReport({
+          name,
+          message: `Error: expect(locator).${assertion}(expected) failed`,
+          resultAnnotations: [routeAnnotation(annotationValue)],
+        }),
+      ),
+      1,
+    )
+    assert.equal(failed.status, 'failed', checkpoint)
+    assert.equal(failed.checks[0].status, 'failed', checkpoint)
+    assert.equal('observation' in failed.checks[0].failure, false, checkpoint)
+    assert.equal(failed.checks[0].failure.assertion, assertion, checkpoint)
+  }
+
+  const unknownReport = browserReport(
+    JSON.stringify(
+      failedBrowserReport({
+        name: keyedTitle,
+        message: 'Error: expect(locator).toHaveAttr() failed',
+        resultAnnotations: [keyedAnnotation],
+      }),
+    ),
+    1,
+  )
+  assert.equal(unknownReport.status, 'failed')
+  assert.equal(unknownReport.checks[0].failure.assertion, 'toBeVisible')
+  assert.deepEqual(unknownReport.checks[0].failure.observation, keyed)
+
+  const malformedReport = browserReport(
+    JSON.stringify(
+      failedBrowserReport({
+        message: 'Error: expect(locator).toHaveAttr() failed',
+        resultAnnotations: [routeAnnotation('not-json')],
+      }),
+    ),
+    1,
+  )
+  assert.equal(malformedReport.status, 'failed')
+  assert.equal('assertion' in malformedReport.checks[0].failure, false)
+  assert.equal('observation' in malformedReport.checks[0].failure, false)
+})
+
+test('route classifier emits only fixed classes from bounded URL input', () => {
+  const cases = [
+    [
+      'https://example.invalid/auth/sign-in?token=hidden#secret',
+      'keyed-return-heading',
+      undefined,
+      'sign-in',
+    ],
+    [
+      'https://example.invalid/trips/new?private=hidden#secret',
+      'keyed-return-heading',
+      undefined,
+      'add-to-trip',
+    ],
+    [
+      'https://example.invalid/trips/id/plan?private=hidden#secret',
+      'signout-initial-plan',
+      undefined,
+      'trip-plan',
+    ],
+    ['https://example.invalid/catalog', 'keyed-return-heading', undefined, 'other'],
+    ['https://example.invalid/trips/id/plan/next', 'keyed-return-heading', undefined, 'other'],
+    ['https://example.invalid/trips/a/b/plan', 'keyed-return-heading', undefined, 'other'],
+  ]
+  for (const [url, checkpoint, repetition, routeClass] of cases) {
+    assert.deepEqual(classifyConfiguredShopperRoute(url, checkpoint, repetition), {
+      version: 1,
+      checkpoint,
+      capture: 'route-only',
+      routeClass,
+    })
+  }
+  assert.deepEqual(
+    classifyConfiguredShopperRoute(
+      'https://example.invalid/trips/id/plan',
+      'signout-return-plan',
+      0,
+    ),
+    {
+      version: 1,
+      checkpoint: 'signout-return-plan',
+      repetition: 0,
+      capture: 'route-only',
+      routeClass: 'trip-plan',
+    },
+  )
+  for (const url of [undefined, 'not a URL', `https://example.invalid/${'x'.repeat(8_200)}`]) {
+    assert.deepEqual(classifyConfiguredShopperRoute(url, 'keyed-return-heading'), {
+      version: 1,
+      checkpoint: 'keyed-return-heading',
+      capture: 'unavailable',
+    })
+  }
+  const secretUrl =
+    'https://origin-SECRET.invalid/trips/id-SECRET/plan?token=SECRET#fragment-SECRET'
+  assert.doesNotMatch(
+    JSON.stringify(classifyConfiguredShopperRoute(secretUrl, 'signout-initial-plan')),
+    /SECRET|origin-|token|fragment/i,
+  )
+})
+
+test('route-only and unavailable observations survive report and publication projection', () => {
+  const cases = [
+    [keyedTitle, 'keyed-return-heading', undefined, 'toBeVisible'],
+    [signoutTitle, 'signout-initial-plan', undefined, 'toHaveValue'],
+    [signoutTitle, 'signout-return-plan', 0, 'toHaveValue'],
+    [signoutTitle, 'signout-return-plan', 1, 'toHaveValue'],
+    [signoutTitle, 'signout-return-plan', 2, 'toHaveValue'],
+  ]
+  for (const [name, checkpoint, repetition, matcher] of cases) {
+    for (const project of ['desktop', 'phone']) {
+      for (const capture of ['route-only', 'unavailable']) {
+        const routeValue =
+          capture === 'unavailable'
+            ? classifyConfiguredShopperRoute(undefined, checkpoint, repetition)
+            : classifyConfiguredShopperRoute(
+                'https://example.invalid/trips/id/plan',
+                checkpoint,
+                repetition,
+              )
+        const annotations = [routeAnnotation(routeValue)]
+        const report = browserReport(
+          JSON.stringify(
+            failedBrowserReport({
+              name,
+              project,
+              message: `Error: expect(locator).${matcher}(expected) failed`,
+              resultAnnotations: annotations,
+            }),
+          ),
+          1,
+        )
+        assert.equal(report.status, 'failed')
+        assert.deepEqual(report.checks[0].failure.observation, routeValue)
+        const published = projectSafeBrowserFailure(report.checks[0].failure, { name, project })
+        assert.equal(published.assertion, matcher)
+        assert.deepEqual(published.observation, routeValue)
+      }
+    }
+  }
+})
+
 test('unavailable observation keeps absence distinct from false', () => {
   const unavailable = { version: 1, checkpoint: 'signout-initial-plan', capture: 'unavailable' }
   const result = browserReport(
@@ -252,6 +444,10 @@ test('strict observation parser omits malformed, duplicated, mismatched, and ove
     [],
     { ...valid, version: 2 },
     { ...valid, extra: 'unknown' },
+    { ...valid, capture: 'complete', signInVisible: true },
+    { version: 1, checkpoint: 'signout-initial-plan', capture: 'route-only' },
+    { ...valid, tripNameVisible: true },
+    { ...valid, valueMatches: true },
     { ...valid, signInVisible: 'false' },
     { ...valid, tripNameCount: -1 },
     { ...valid, tripNameCount: 1.5 },
@@ -262,6 +458,7 @@ test('strict observation parser omits malformed, duplicated, mismatched, and ove
     { ...valid, routeClass: 'trip-unavailable' },
     { ...valid, checkpoint: 'unknown-checkpoint' },
     { ...valid, capture: 'partial' },
+    { version: 1, checkpoint: 'signout-initial-plan', capture: 'unavailable', routeClass: 'other' },
     { ...valid, tripNameCount: 0, tripNameVisible: true },
     { ...valid, tripNameCount: 0, valueMatches: true },
     { ...valid, checkpoint: 'signout-initial-plan', repetition: 1 },

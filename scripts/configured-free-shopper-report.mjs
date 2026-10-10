@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import { URL } from 'node:url'
 
 const routeObservationType = 'configured-route-observation-v1'
 const routeObservationCheckpoints = new Map([
@@ -19,6 +20,11 @@ const allowedAssertions = new Set([
   'locator.click',
 ])
 const allowedRouteClasses = new Set(['sign-in', 'add-to-trip', 'trip-plan', 'other'])
+const checkpointAssertions = new Map([
+  ['keyed-return-heading', 'toBeVisible'],
+  ['signout-initial-plan', 'toHaveValue'],
+  ['signout-return-plan', 'toHaveValue'],
+])
 
 function isRecord(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false
@@ -31,6 +37,38 @@ function hasExactKeys(value, keys) {
   const actual = Object.keys(value).sort()
   const expected = [...keys].sort()
   return actual.length === expected.length && actual.every((key, index) => key === expected[index])
+}
+
+function routeObservationBase(checkpoint, repetition) {
+  return {
+    version: 1,
+    checkpoint,
+    ...(checkpoint === 'signout-return-plan' ? { repetition } : {}),
+  }
+}
+
+export function classifyConfiguredShopperRoute(url, checkpoint, repetition) {
+  const base = routeObservationBase(checkpoint, repetition)
+  const unavailable = { ...base, capture: 'unavailable' }
+  if (!checkpointAssertions.has(checkpoint)) return unavailable
+  if (
+    checkpoint === 'signout-return-plan'
+      ? !Number.isInteger(repetition) || repetition < 0 || repetition > 2
+      : repetition !== undefined
+  )
+    return unavailable
+  if (typeof url !== 'string' || url.length > 8_192) return unavailable
+  let pathname
+  try {
+    pathname = new URL(url).pathname
+  } catch {
+    return unavailable
+  }
+  let routeClass = 'other'
+  if (pathname === '/auth/sign-in') routeClass = 'sign-in'
+  else if (pathname === '/trips/new') routeClass = 'add-to-trip'
+  else if (/^\/trips\/[^/]+\/plan$/.test(pathname)) routeClass = 'trip-plan'
+  return { ...base, capture: 'route-only', routeClass }
 }
 
 function routeObservationFor(value, name, project) {
@@ -63,49 +101,19 @@ function routeObservationFor(value, name, project) {
       capture: 'unavailable',
     }
   }
-  const completeKeys = [
-    ...commonKeys,
-    'capture',
-    'routeClass',
-    'signInVisible',
-    'expectedHeadingVisible',
-    'unavailableHeadingVisible',
-    'tripNameCount',
-    'tripNameVisible',
-    'valueMatches',
-  ]
-  if (value.capture !== 'complete' || !hasExactKeys(value, completeKeys)) return undefined
+  const routeOnlyKeys = [...commonKeys, 'capture', 'routeClass']
   if (
-    !allowedRouteClasses.has(value.routeClass) ||
-    typeof value.signInVisible !== 'boolean' ||
-    typeof value.expectedHeadingVisible !== 'boolean' ||
-    typeof value.unavailableHeadingVisible !== 'boolean' ||
-    !Number.isInteger(value.tripNameCount) ||
-    value.tripNameCount < 0 ||
-    value.tripNameCount > 2
+    value.capture !== 'route-only' ||
+    !hasExactKeys(value, routeOnlyKeys) ||
+    !allowedRouteClasses.has(value.routeClass)
   )
     return undefined
-  const uniqueName = value.tripNameCount === 1
-  if (uniqueName) {
-    if (
-      (value.tripNameVisible !== null && typeof value.tripNameVisible !== 'boolean') ||
-      (value.valueMatches !== null && typeof value.valueMatches !== 'boolean')
-    )
-      return undefined
-  } else if (value.tripNameVisible !== null || value.valueMatches !== null) return undefined
-  if (checkpoint === 'keyed-return-heading' && value.valueMatches !== null) return undefined
   return {
     version: 1,
     checkpoint,
     ...(expectsRepetition ? { repetition: value.repetition } : {}),
-    capture: 'complete',
+    capture: 'route-only',
     routeClass: value.routeClass,
-    signInVisible: value.signInVisible,
-    expectedHeadingVisible: value.expectedHeadingVisible,
-    unavailableHeadingVisible: value.unavailableHeadingVisible,
-    tripNameCount: value.tripNameCount,
-    tripNameVisible: uniqueName ? value.tripNameVisible : null,
-    valueMatches: uniqueName && checkpoint !== 'keyed-return-heading' ? value.valueMatches : null,
   }
 }
 
@@ -149,10 +157,15 @@ export function projectSafeBrowserFailure(failure, { name, project, annotations 
     Number.isSafeInteger(failure?.sourceLine) && failure.sourceLine > 0
       ? failure.sourceLine
       : undefined
-  const assertion = allowedAssertions.has(failure?.assertion) ? failure.assertion : undefined
-  const observation = Array.isArray(annotations)
+  let assertion = allowedAssertions.has(failure?.assertion) ? failure.assertion : undefined
+  let observation = Array.isArray(annotations)
     ? observationFromAnnotations(annotations, name, project)
     : routeObservationFor(failure?.observation, name, project)
+  if (observation) {
+    const expectedAssertion = checkpointAssertions.get(observation.checkpoint)
+    if (assertion && assertion !== expectedAssertion) observation = undefined
+    else assertion ??= expectedAssertion
+  }
   return {
     ...(sourceLine ? { sourceLine } : {}),
     ...(assertion ? { assertion } : {}),

@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
+import { classifyConfiguredShopperRoute } from '../scripts/configured-free-shopper-report.mjs'
 
 const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 'utf8'))
 const service = createLocalService({ resumeDirectory: input.directory })
@@ -79,99 +80,13 @@ type RouteObservationCheckpoint =
   | 'signout-initial-plan'
   | 'signout-return-plan'
 
-function routeClass(page: Page): 'sign-in' | 'add-to-trip' | 'trip-plan' | 'other' {
-  let pathname: string
-  try {
-    pathname = new URL(page.url()).pathname
-  } catch {
-    return 'other'
-  }
-  if (pathname === '/auth/sign-in') return 'sign-in'
-  if (pathname === '/trips/new') return 'add-to-trip'
-  if (/^\/trips\/[^/]+\/plan$/.test(pathname)) return 'trip-plan'
-  return 'other'
-}
-
-async function boundedCount(locator: ReturnType<Page['getByLabel']>, deadline: number) {
-  if (Date.now() >= deadline) throw new Error('capture-budget')
-  const count = await locator.count()
-  if (Date.now() >= deadline) throw new Error('capture-budget')
-  return count
-}
-
-async function boundedVisible(
-  locator: ReturnType<Page['getByLabel']>,
-  count: number,
-  deadline: number,
-) {
-  if (count === 0) return false
-  if (Date.now() >= deadline) throw new Error('capture-budget')
-  const visible = await locator.first().isVisible()
-  if (Date.now() >= deadline) throw new Error('capture-budget')
-  return visible
-}
-
-async function settleProbes<T>(probes: Promise<T>[]) {
-  const results = await Promise.allSettled(probes)
-  const failed = results.find((result) => result.status === 'rejected')
-  if (failed?.status === 'rejected') throw new Error('capture-unavailable')
-  return results.map((result) => (result as PromiseFulfilledResult<T>).value)
-}
-
-async function captureRouteObservation(
+function captureRouteObservation(
   page: Page,
   checkpoint: RouteObservationCheckpoint,
   repetition: number | undefined,
-  expectedTripName: string | undefined,
 ) {
-  const deadline = Date.now() + 500
   try {
-    const email = page.getByLabel('Email', { exact: true })
-    const expectedHeading =
-      checkpoint === 'keyed-return-heading'
-        ? page.getByRole('heading', { name: 'Add to Trip', exact: true })
-        : page.getByRole('heading', { name: 'Trip identity', exact: true })
-    const unavailableHeading = page.getByRole('heading', {
-      name: 'Trip unavailable',
-      exact: true,
-    })
-    const tripName = page.getByLabel('Trip name', { exact: true })
-    const [emailCount, headingCount, unavailableCount, nameCount] = await settleProbes([
-      boundedCount(email, deadline),
-      boundedCount(expectedHeading, deadline),
-      boundedCount(unavailableHeading, deadline),
-      boundedCount(tripName, deadline),
-    ])
-    const [signInVisible, expectedHeadingVisible, unavailableHeadingVisible] = await settleProbes([
-      boundedVisible(email, emailCount, deadline),
-      boundedVisible(expectedHeading, headingCount, deadline),
-      boundedVisible(unavailableHeading, unavailableCount, deadline),
-    ])
-    const tripNameCount = Math.min(nameCount, 2)
-    const tripNameVisible =
-      tripNameCount === 1 ? await boundedVisible(tripName, nameCount, deadline) : null
-    let valueMatches: boolean | null = null
-    if (checkpoint !== 'keyed-return-heading' && tripNameCount === 1 && expectedTripName) {
-      const remaining = Math.floor(deadline - Date.now())
-      if (remaining <= 0) throw new Error('capture-budget')
-      const value = await tripName.first().inputValue({ timeout: Math.min(100, remaining) })
-      if (Date.now() >= deadline) throw new Error('capture-budget')
-      valueMatches = value === expectedTripName
-    }
-    if (Date.now() >= deadline) throw new Error('capture-budget')
-    return {
-      version: 1,
-      checkpoint,
-      ...(checkpoint === 'signout-return-plan' ? { repetition } : {}),
-      capture: 'complete',
-      routeClass: routeClass(page),
-      signInVisible,
-      expectedHeadingVisible,
-      unavailableHeadingVisible,
-      tripNameCount,
-      tripNameVisible,
-      valueMatches,
-    }
+    return classifyConfiguredShopperRoute(page.url(), checkpoint, repetition)
   } catch {
     return {
       version: 1,
@@ -187,7 +102,6 @@ async function assertWithRouteObservation(
   testInfo: TestInfo,
   checkpoint: RouteObservationCheckpoint,
   repetition: number | undefined,
-  expectedTripName: string | undefined,
   assertion: () => Promise<void>,
 ) {
   try {
@@ -201,17 +115,7 @@ async function assertWithRouteObservation(
       (annotation) => annotation.type === routeObservationType,
     )
     if (correctCase && correctProject && !alreadyObserved) {
-      const observation = await captureRouteObservation(
-        page,
-        checkpoint,
-        repetition,
-        expectedTripName,
-      ).catch(() => ({
-        version: 1,
-        checkpoint,
-        ...(checkpoint === 'signout-return-plan' ? { repetition } : {}),
-        capture: 'unavailable',
-      }))
+      const observation = captureRouteObservation(page, checkpoint, repetition)
       try {
         testInfo.annotations.push({
           type: routeObservationType,
@@ -566,13 +470,8 @@ test('keyed trip create replays after committed response loss', async ({
   }
 
   await login(page, 0, `/trips/new?addStoreId=${A}&returnTo=%2Fsaved`)
-  await assertWithRouteObservation(
-    page,
-    testInfo,
-    'keyed-return-heading',
-    undefined,
-    undefined,
-    () => expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible(),
+  await assertWithRouteObservation(page, testInfo, 'keyed-return-heading', undefined, () =>
+    expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible(),
   )
   await page.route('**/rest/v1/rpc/create_trip', routeHandler)
   page.on('request', onRequest)
@@ -711,13 +610,8 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
     `insert into shopper_private.saved_stores(user_id,store_id) values ('${owner}','${A}');`,
   )
   let ownerToken = await login(page, 0, `/trips/${id}/plan`)
-  await assertWithRouteObservation(
-    page,
-    testInfo,
-    'signout-initial-plan',
-    undefined,
-    before.name,
-    () => expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(before.name),
+  await assertWithRouteObservation(page, testInfo, 'signout-initial-plan', undefined, () =>
+    expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(before.name),
   )
   const sibling = await browser.newContext({ baseURL: input.origin })
   try {
@@ -751,13 +645,8 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   for (let repetition = 0; repetition < 3; repetition++) {
     if (repetition) ownerToken = await login(page, 0, `/trips/${id}/plan`)
     // Leaving sign-in is not proof that the private return route has finished.
-    await assertWithRouteObservation(
-      page,
-      testInfo,
-      'signout-return-plan',
-      repetition,
-      before.name,
-      () => expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(before.name),
+    await assertWithRouteObservation(page, testInfo, 'signout-return-plan', repetition, () =>
+      expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(before.name),
     )
     await page.goto('/account')
     await expect(page.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible()
