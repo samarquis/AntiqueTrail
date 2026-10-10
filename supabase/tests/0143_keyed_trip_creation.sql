@@ -1,7 +1,14 @@
+select set_config('test.issue634_saved_statement_timeout',current_setting('statement_timeout'),false);
+select set_config('test.issue634_saved_lock_timeout',current_setting('lock_timeout'),false);
+select set_config('statement_timeout','30s',false);
+select set_config('lock_timeout','15s',false);
+do $$begin raise notice 'issue634.phase.test_timeouts_set'; end $$;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists dblink with schema extensions;
+do $$begin raise notice 'issue634.phase.extensions_ready'; end $$;
 
 -- Recover prior committed fixtures through account purge before recreating them.
+do $$begin raise notice 'issue634.phase.prior_cleanup_begin'; end $$;
 begin;
 delete from app_private.account_deletion_requests
 where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
@@ -30,6 +37,7 @@ select set_config('test.issue634_cleanup_limit',(
     '63400000-0000-4000-8000-000000000031','63400000-0000-4000-8000-000000000032',
     '63400000-0000-4000-8000-000000000040')),false);
 commit;
+do $$begin raise notice 'issue634.phase.prior_cleanup_claim_begin'; end $$;
 begin;
 set local role account_lifecycle_service;
 create temp table issue634_prior_claim as
@@ -40,6 +48,7 @@ reset test.issue634_cleanup_limit;
 select app_public.prepare_account_deletion(deletion_request_id,claim_token,statement_timestamp())
 from issue634_prior_claim;
 commit;
+do $$begin raise notice 'issue634.phase.prior_cleanup_prepare_complete'; end $$;
 begin;
 delete from app_private.account_deletion_requests
 where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
@@ -52,8 +61,10 @@ delete from auth.users where id in ('63400000-0000-4000-8000-000000000001',
   '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
   '63400000-0000-4000-8000-000000000006');
 commit;
+do $$begin raise notice 'issue634.phase.prior_cleanup_complete'; end $$;
 
 -- dblink sessions need committed auth/session fixtures visible on both connections.
+do $$begin raise notice 'issue634.phase.fixture_setup_begin'; end $$;
 begin;
 insert into auth.users(id,email,email_confirmed_at) values
  ('63400000-0000-4000-8000-000000000001','keyed-a@issue634.invalid',statement_timestamp()),
@@ -85,9 +96,11 @@ insert into app_private.role_grants(subject_user_id,role,state) values
  ('63400000-0000-4000-8000-000000000006','shopper','active');
 reset role;
 commit;
+do $$begin raise notice 'issue634.phase.fixture_setup_committed'; end $$;
 
 begin;
 select no_plan();
+do $$begin raise notice 'issue634.phase.assertions_begin'; end $$;
 
 select has_function('app_public','create_trip',array['text','text'],'legacy create overload remains');
 select has_function('app_public','create_trip',array['text','text','uuid'],'keyed create overload exists');
@@ -142,6 +155,7 @@ select set_config('request.jwt.claims',
 select set_config('request.method','POST',true);
 select set_config('request.path','rpc/create_trip',true);
 set local role authenticated;
+do $$begin raise notice 'issue634.phase.primary_rpc_begin'; end $$;
 select ok(app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint),
   'primary actor registers an active session');
 select set_config('test.first',app_public.create_trip('Keyed replay','2030-10-12',
@@ -248,30 +262,41 @@ select throws_ok($$select app_public.create_trip('No active session','2030-10-12
   '63400000-0000-4000-8000-000000000199')$$,'P0001','authorization_lost',
   'inactive session cannot create a trip');
 reset role;
+do $$begin raise notice 'issue634.phase.primary_rpc_complete'; end $$;
 
 -- Concurrent matching requests must wait on the same actor/key transaction lock.
+do $$begin raise notice 'issue634.phase.concurrent_race_begin'; end $$;
 select extensions.dblink_connect('issue634_a','dbname=postgres application_name=issue634_a');
+select extensions.dblink_exec('issue634_a','set statement_timeout = ''30s''');
+select extensions.dblink_exec('issue634_a','set lock_timeout = ''15s''');
 select extensions.dblink_connect('issue634_b','dbname=postgres application_name=issue634_b');
+select extensions.dblink_exec('issue634_b','set statement_timeout = ''30s''');
+select extensions.dblink_exec('issue634_b','set lock_timeout = ''15s''');
 select extensions.dblink_exec('issue634_a',$remote$
   begin; set local role authenticated;
   set local request.method='POST'; set local request.path='rpc/register_current_session';
   set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000001","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000016"}';
   do $$begin perform app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint); end$$;
 $remote$);
+do $$begin raise notice 'issue634.phase.concurrent_a_ready'; end $$;
 select extensions.dblink_send_query('issue634_a',$query$
   select app_public.create_trip('Concurrent keyed create','2030-10-12','63400000-0000-4000-8000-000000000103')
 $query$);
+do $$begin raise notice 'issue634.phase.concurrent_a_result_wait'; end $$;
 select set_config('test.concurrent_a',(
   select result.value::text from extensions.dblink_get_result('issue634_a') as result(value jsonb)),true);
+do $$begin raise notice 'issue634.phase.concurrent_a_result_ready'; end $$;
 select extensions.dblink_exec('issue634_b',$remote$
   begin; set local role authenticated;
   set local request.method='POST'; set local request.path='rpc/register_current_session';
   set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000001","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000017"}';
   do $$begin perform app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint); end$$;
 $remote$);
+do $$begin raise notice 'issue634.phase.concurrent_b_ready'; end $$;
 select extensions.dblink_send_query('issue634_b',$query$
   select app_public.create_trip('Concurrent keyed create','2030-10-12','63400000-0000-4000-8000-000000000103')
 $query$);
+do $$begin raise notice 'issue634.phase.concurrent_lock_probe'; end $$;
 do $$
 declare deadline timestamptz:=clock_timestamp()+interval '5 seconds';
 begin
@@ -286,11 +311,15 @@ begin
     perform pg_catalog.pg_sleep(0.01);
   end loop;
 end $$;
+do $$begin raise notice 'issue634.phase.concurrent_lock_probe_complete'; end $$;
 select is(current_setting('test.concurrent_lock_observed'),'true',
   'matching request waits on actor/key lock held by first transaction');
+do $$begin raise notice 'issue634.phase.concurrent_a_commit'; end $$;
 select extensions.dblink_exec('issue634_a','commit');
+do $$begin raise notice 'issue634.phase.concurrent_b_result_wait'; end $$;
 select set_config('test.concurrent_b',(
   select result.value::text from extensions.dblink_get_result('issue634_b') as result(value jsonb)),true);
+do $$begin raise notice 'issue634.phase.concurrent_b_result_ready'; end $$;
 select extensions.dblink_exec('issue634_b','commit');
 select extensions.dblink_disconnect('issue634_a');
 select extensions.dblink_disconnect('issue634_b');
@@ -307,10 +336,16 @@ select is((select count(*)::integer from trip_private.trip_create_receipts
   where actor_user_id='63400000-0000-4000-8000-000000000001'
     and idempotency_key='63400000-0000-4000-8000-000000000103'),1,
   'concurrent requests create one receipt');
+do $$begin raise notice 'issue634.phase.concurrent_race_complete'; end $$;
 
 -- Commit a create while discarding its response, then replay in a later transaction.
+do $$begin raise notice 'issue634.phase.lost_response_begin'; end $$;
 select extensions.dblink_connect('issue634_lost_first','dbname=postgres application_name=issue634_lost_first');
+select extensions.dblink_exec('issue634_lost_first','set statement_timeout = ''30s''');
+select extensions.dblink_exec('issue634_lost_first','set lock_timeout = ''15s''');
 select extensions.dblink_connect('issue634_lost_replay','dbname=postgres application_name=issue634_lost_replay');
+select extensions.dblink_exec('issue634_lost_replay','set statement_timeout = ''30s''');
+select extensions.dblink_exec('issue634_lost_replay','set lock_timeout = ''15s''');
 select extensions.dblink_exec('issue634_lost_first',$remote$
   begin; set local role authenticated;
   set local request.method='POST'; set local request.path='rpc/register_current_session';
@@ -322,12 +357,15 @@ select extensions.dblink_exec('issue634_lost_first',$remote$
   end$$;
   commit;
 $remote$);
+do $$begin raise notice 'issue634.phase.lost_response_first_committed'; end $$;
+do $$begin raise notice 'issue634.phase.lost_response_receipt_capture'; end $$;
 set local role identity_service;
 select set_config('test.lost_expected',(
   select trip_id::text from trip_private.trip_create_receipts
   where actor_user_id='63400000-0000-4000-8000-000000000006'
     and idempotency_key='63400000-0000-4000-8000-000000000107'),true);
 reset role;
+do $$begin raise notice 'issue634.phase.lost_response_replay_begin'; end $$;
 select extensions.dblink_exec('issue634_lost_replay',$remote$
   begin; set local role authenticated;
   set local request.method='POST'; set local request.path='rpc/register_current_session';
@@ -338,8 +376,10 @@ $remote$);
 select extensions.dblink_send_query('issue634_lost_replay',$query$
   select app_public.create_trip('Committed lost response','2030-10-12','63400000-0000-4000-8000-000000000107')
 $query$);
+do $$begin raise notice 'issue634.phase.lost_response_result_wait'; end $$;
 select set_config('test.lost_replay',(
   select result.value::text from extensions.dblink_get_result('issue634_lost_replay') as result(value jsonb)),true);
+do $$begin raise notice 'issue634.phase.lost_response_result_ready'; end $$;
 select extensions.dblink_exec('issue634_lost_replay','commit');
 select extensions.dblink_disconnect('issue634_lost_first');
 select extensions.dblink_disconnect('issue634_lost_replay');
@@ -355,8 +395,10 @@ select is((select count(*)::integer from trip_private.trip_create_receipts
   where actor_user_id='63400000-0000-4000-8000-000000000006'
     and idempotency_key='63400000-0000-4000-8000-000000000107'
     and trip_id=current_setting('test.lost_expected')::uuid),1,'lost-response replay leaves one persisted receipt');
+do $$begin raise notice 'issue634.phase.lost_response_complete'; end $$;
 
 -- Admit the same internal planning actor and session used by the existing 0120 fixture.
+do $$begin raise notice 'issue634.phase.internal_fixture_begin'; end $$;
 insert into internal_review_private.identities(user_id,alias,fixture_namespace,controlled_address)
 values('63400000-0000-4000-8000-000000000003','issue634-planner','issue634-keyed-trip',
   'keyed-internal@issue634.invalid');
@@ -398,9 +440,11 @@ select throws_ok($$select app_public.create_trip('Missing route fixture','2030-1
   '63400000-0000-4000-8000-000000000106')$$,'42501','internal_fixture_denied',
   'missing internal route is denied by existing trip fixture guard');
 reset role;
+do $$begin raise notice 'issue634.phase.internal_fixture_complete'; end $$;
 
 -- Exercise the real due-claim and prepare path; deleting one actor removes their
 -- receipt tombstones and owned trips while preserving another actor's receipt.
+do $$begin raise notice 'issue634.phase.account_purge_assertions_begin'; end $$;
 set local role identity_service;
 update app_private.profiles set status='deletion_scheduled',deletion_due_at=statement_timestamp()-interval '1 day'
 where user_id='63400000-0000-4000-8000-000000000001';
@@ -412,6 +456,7 @@ set local role account_lifecycle_service;
 create temp table issue634_claimed as
 select * from app_public.claim_due_account_deletions(statement_timestamp(),10);
 reset role;
+do $$begin raise notice 'issue634.phase.account_purge_claim_query_complete'; end $$;
 select is((select count(*)::integer from issue634_claimed),1,
   'account purge fixture is claimed through normal due-deletion path');
 select lives_ok($$select app_public.prepare_account_deletion(
@@ -430,11 +475,13 @@ select ok(exists(select 1 from trip_private.trip_create_receipts
 select ok(exists(select 1 from trip_private.trips
   where owner_id='63400000-0000-4000-8000-000000000002'),
   'another actor trip survives target account purge');
+do $$begin raise notice 'issue634.phase.account_purge_assertions_complete'; end $$;
 
 select * from finish();
 rollback;
 
 -- Purge every committed test actor and dblink result through account lifecycle.
+do $$begin raise notice 'issue634.phase.final_cleanup_begin'; end $$;
 begin;
 delete from app_private.account_deletion_requests
 where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
@@ -457,6 +504,7 @@ insert into app_private.account_deletion_requests(deletion_request_id,user_id,re
   statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day');
 reset role;
 commit;
+do $$begin raise notice 'issue634.phase.final_cleanup_claim_begin'; end $$;
 begin;
 set local role account_lifecycle_service;
 create temp table issue634_cleanup_claim as
@@ -465,6 +513,7 @@ reset role;
 select app_public.prepare_account_deletion(deletion_request_id,claim_token,statement_timestamp())
 from issue634_cleanup_claim;
 commit;
+do $$begin raise notice 'issue634.phase.final_cleanup_prepare_complete'; end $$;
 begin;
 delete from app_private.account_deletion_requests
 where deletion_request_id in ('63400000-0000-4000-8000-000000000030',
@@ -477,3 +526,8 @@ delete from auth.users where id in ('63400000-0000-4000-8000-000000000001',
   '63400000-0000-4000-8000-000000000002','63400000-0000-4000-8000-000000000003',
   '63400000-0000-4000-8000-000000000006');
 commit;
+select set_config('statement_timeout',current_setting('test.issue634_saved_statement_timeout'),false);
+select set_config('lock_timeout',current_setting('test.issue634_saved_lock_timeout'),false);
+reset test.issue634_saved_statement_timeout;
+reset test.issue634_saved_lock_timeout;
+do $$begin raise notice 'issue634.phase.test_timeouts_restored'; end $$;
