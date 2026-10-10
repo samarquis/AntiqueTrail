@@ -97,6 +97,16 @@ const ownerListingDenialRpcs = new Map([
   ['cancelled_owner_list', 'owner_list_stores'],
   ['shopper_owner_list', 'owner_list_stores'],
 ])
+const ownerListingPublicReadbackErrorCodes = new Set([
+  'ALPHA_AUTH_REQUIRED',
+  'CATALOG_UNAVAILABLE',
+  'GATEWAY_UNAVAILABLE',
+  'INVALID_OPERATION',
+  'INVALID_REQUEST',
+  'MAP_UNAVAILABLE',
+  'RATE_LIMITED',
+])
+const ownerListingPublicReadbackStates = new Set(['detail', 'not_found', 'error', 'loading', 'unknown'])
 
 function ownerListingDenialEvidence(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
@@ -111,6 +121,38 @@ function ownerListingDenialEvidence(value) {
   )
     return undefined
   return { case: value.case, rpc, httpStatus: value.httpStatus }
+}
+
+export function ownerListingPublicReadbackEvidence(value) {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    value.case !== 'store_b_after_denied_write' ||
+    !ownerListingPublicReadbackStates.has(value.visibleState)
+  )
+    return undefined
+  if (value.response === 'not_observed') {
+    if (Object.prototype.hasOwnProperty.call(value, 'httpStatus')) return undefined
+    return { case: value.case, response: value.response, visibleState: value.visibleState }
+  }
+  if (
+    value.response !== 'response' ||
+    !Number.isSafeInteger(value.httpStatus) ||
+    value.httpStatus < 100 ||
+    value.httpStatus > 599
+  )
+    return undefined
+  const errorCode = ownerListingPublicReadbackErrorCodes.has(value.errorCode)
+    ? value.errorCode
+    : undefined
+  return {
+    case: value.case,
+    response: value.response,
+    httpStatus: value.httpStatus,
+    ...(errorCode ? { errorCode } : {}),
+    visibleState: value.visibleState,
+  }
 }
 
 export function ownerListingPathname(value) {
@@ -155,12 +197,14 @@ export function ownerListingFailure(error) {
         ? 'assertion'
         : 'operation'
   const ownerDenial = ownerListingDenialEvidence(error?.ownerDenial)
+  const ownerPublicReadback = ownerListingPublicReadbackEvidence(error?.ownerPublicReadback)
   return {
     ...(assertion ? { assertion } : {}),
     ...(line ? { sourceLine: Number(line[1]) } : {}),
     timeout,
     category,
     ...(ownerDenial ? { ownerDenial } : {}),
+    ...(ownerPublicReadback ? { ownerPublicReadback } : {}),
   }
 }
 
@@ -236,6 +280,7 @@ export function ownerListingStepResults(text) {
     if (step?.failure && typeof step.failure === 'object') {
       const failure = step.failure
       const ownerDenial = ownerListingDenialEvidence(failure.ownerDenial)
+      const ownerPublicReadback = ownerListingPublicReadbackEvidence(failure.ownerPublicReadback)
       const assertion = ownerListingAssertions.includes(failure.assertion)
         ? failure.assertion
         : undefined
@@ -249,6 +294,7 @@ export function ownerListingStepResults(text) {
         timeout: failure.timeout === true,
         category: ownerListingCategories.has(failure.category) ? failure.category : 'operation',
         ...(ownerDenial ? { ownerDenial } : {}),
+        ...(ownerPublicReadback ? { ownerPublicReadback } : {}),
       }
     }
     return result

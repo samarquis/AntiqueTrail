@@ -297,3 +297,147 @@ test('Owner transport failures remain generic without fabricated denial status',
   assert.deepEqual(failure, { timeout: false, category: 'operation' })
   assert.equal('ownerDenial' in failure, false)
 })
+
+test('Owner public readback diagnostics retain only allowlisted response evidence', () => {
+  const error = Object.assign(
+    new Error('Bearer readback-token person@private.invalid https://local.invalid/?slug=private'),
+    {
+      ownerPublicReadback: {
+        case: 'store_b_after_denied_write',
+        response: 'response',
+        httpStatus: 503,
+        errorCode: 'ALPHA_AUTH_REQUIRED',
+        visibleState: 'error',
+        rawBody: 'private-response-body',
+        slug: 'private-slug',
+        storeId: 'private-store-id',
+        request: { authorization: 'Bearer nested-token' },
+        url: 'http://127.0.0.1/private?slug=secret',
+      },
+      ownerDenial: {
+        case: 'owner_a_select_store_b',
+        rpc: 'owner_select_store',
+        httpStatus: 500,
+      },
+    },
+  )
+  const failure = ownerListingFailure(error)
+  const steps = ownerListingStepResults(
+    JSON.stringify([{ name: 'public-readback', status: 'failed', failure }]),
+  )
+
+  assert.deepEqual(steps[0].failure, {
+    timeout: false,
+    category: 'operation',
+    ownerDenial: {
+      case: 'owner_a_select_store_b',
+      rpc: 'owner_select_store',
+      httpStatus: 500,
+    },
+    ownerPublicReadback: {
+      case: 'store_b_after_denied_write',
+      response: 'response',
+      httpStatus: 503,
+      errorCode: 'ALPHA_AUTH_REQUIRED',
+      visibleState: 'error',
+    },
+  })
+  assert.doesNotMatch(
+    JSON.stringify(steps),
+    /readback-token|private\.invalid|private-response-body|private-slug|private-store-id|nested-token|slug=secret/,
+  )
+})
+
+test('Owner public readback projection permits 200 detail and keeps not-observed generic', () => {
+  const steps = ownerListingStepResults(
+    JSON.stringify([
+      {
+        failure: {
+          ownerPublicReadback: {
+            case: 'store_b_after_denied_write',
+            response: 'response',
+            httpStatus: 200,
+            visibleState: 'detail',
+          },
+        },
+      },
+      {
+        failure: {
+          ownerPublicReadback: {
+            case: 'store_b_after_denied_write',
+            response: 'not_observed',
+            visibleState: 'loading',
+            errorCode: 'RATE_LIMITED',
+          },
+        },
+      },
+    ]),
+  )
+
+  assert.deepEqual(steps[0].failure.ownerPublicReadback, {
+    case: 'store_b_after_denied_write',
+    response: 'response',
+    httpStatus: 200,
+    visibleState: 'detail',
+  })
+  assert.deepEqual(steps[1].failure.ownerPublicReadback, {
+    case: 'store_b_after_denied_write',
+    response: 'not_observed',
+    visibleState: 'loading',
+  })
+})
+
+test('Owner public readback projection rejects inconsistent and malformed evidence', () => {
+  const invalid = [
+    { case: 'unknown_case', response: 'response', httpStatus: 503, visibleState: 'error' },
+    { case: 'store_b_after_denied_write', response: 'unknown', httpStatus: 503, visibleState: 'error' },
+    { case: 'store_b_after_denied_write', response: 'response', httpStatus: 503, visibleState: 'private' },
+    { case: 'store_b_after_denied_write', response: 'response', visibleState: 'error' },
+    { case: 'store_b_after_denied_write', response: 'response', httpStatus: '503 private-token', visibleState: 'error' },
+    { case: 'store_b_after_denied_write', response: 'response', httpStatus: 503.5, visibleState: 'error' },
+    { case: 'store_b_after_denied_write', response: 'response', httpStatus: 99, visibleState: 'error' },
+    { case: 'store_b_after_denied_write', response: 'response', httpStatus: 600, visibleState: 'error' },
+    { case: 'store_b_after_denied_write', response: 'not_observed', httpStatus: 503, visibleState: 'loading' },
+  ]
+
+  for (const ownerPublicReadback of invalid) {
+    const steps = ownerListingStepResults(
+      JSON.stringify([
+        {
+          failure: {
+            ownerPublicReadback: { ...ownerPublicReadback, rawBody: 'private-response-body' },
+          },
+        },
+      ]),
+    )
+
+    assert.equal('ownerPublicReadback' in steps[0].failure, false)
+    assert.doesNotMatch(JSON.stringify(steps), /private-token|private-response-body/)
+  }
+})
+
+test('Unknown Owner public readback error codes are omitted without losing safe evidence', () => {
+  const steps = ownerListingStepResults(
+    JSON.stringify([
+      {
+        failure: {
+          ownerPublicReadback: {
+            case: 'store_b_after_denied_write',
+            response: 'response',
+            httpStatus: 503,
+            errorCode: 'private-server-error',
+            visibleState: 'error',
+          },
+        },
+      },
+    ]),
+  )
+
+  assert.deepEqual(steps[0].failure.ownerPublicReadback, {
+    case: 'store_b_after_denied_write',
+    response: 'response',
+    httpStatus: 503,
+    visibleState: 'error',
+  })
+  assert.doesNotMatch(JSON.stringify(steps), /private-server-error/)
+})

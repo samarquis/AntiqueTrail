@@ -8,6 +8,7 @@ import {
   ownerListingApprovalErrorIdentifier,
   ownerListingMfaErrorCode,
   ownerListingPathname,
+  ownerListingPublicReadbackEvidence as sanitizeOwnerPublicReadbackEvidence,
 } from '../scripts/configured-representative-hours-report.mjs'
 
 type User = { email: string; password: string; totpSecret?: string }
@@ -411,6 +412,110 @@ async function openPublicStore(browser: Browser, slug: string) {
   const page = await context.newPage()
   await page.goto(`/stores/${encodeURIComponent(slug)}`)
   return { context, page }
+}
+
+type PublicCatalogObservation =
+  | { kind: 'response'; response: Response }
+  | { kind: 'not_observed' }
+
+function observePublicStoreDetails(page: Page, slug: string): Promise<PublicCatalogObservation> {
+  const endpointOrigin = new URL(input.endpoint).origin
+  return page
+    .waitForResponse(
+      (response) => {
+        const request = response.request()
+        if (request.method() !== 'POST') return false
+        let responseUrl: URL
+        let requestPage: Page
+        let payload: { operation?: unknown; args?: { p_slug?: unknown } } | null
+        try {
+          responseUrl = new URL(response.url())
+          requestPage = request.frame().page()
+          payload = JSON.parse(request.postData() ?? '')
+        } catch {
+          return false
+        }
+        return (
+          requestPage === page &&
+          responseUrl.origin === endpointOrigin &&
+          responseUrl.pathname === '/functions/v1/public-catalog' &&
+          payload?.operation === 'details' &&
+          payload.args?.p_slug === slug
+        )
+      },
+      { timeout: 12_000 },
+    )
+    .then((response) => ({ kind: 'response' as const, response }))
+    .catch(() => ({ kind: 'not_observed' as const }))
+}
+
+async function publicStoreVisibleState(page: Page) {
+  if (await page.getByRole('heading', { name: 'Sibling Market', exact: true }).isVisible().catch(() => false))
+    return 'detail'
+  if (await page.getByRole('heading', { name: 'Store not found', exact: true }).isVisible().catch(() => false))
+    return 'not_found'
+  if (
+    await page
+      .getByRole('alert')
+      .getByRole('heading', { name: 'We couldn’t load the stores', exact: true })
+      .isVisible()
+      .catch(() => false)
+  )
+    return 'error'
+  if (await page.getByRole('heading', { name: 'Finding stores', exact: true }).isVisible().catch(() => false))
+    return 'loading'
+  return 'unknown'
+}
+
+async function publicStoreReadbackFailure(
+  page: Page,
+  observation: PublicCatalogObservation,
+) {
+  const visibleState = await publicStoreVisibleState(page)
+  if (observation.kind === 'not_observed')
+    return sanitizeOwnerPublicReadbackEvidence({
+      case: 'store_b_after_denied_write',
+      response: 'not_observed',
+      visibleState,
+    })
+
+  const { response } = observation
+  const errorCode = await publicCatalogErrorCode(response)
+  return sanitizeOwnerPublicReadbackEvidence({
+    case: 'store_b_after_denied_write',
+    response: 'response',
+    httpStatus: response.status(),
+    ...(errorCode ? { errorCode } : {}),
+    visibleState,
+  })
+}
+
+async function publicCatalogErrorCode(response: Response) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const body: unknown = await Promise.race([
+      response.json(),
+      new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), 1_000)
+      }),
+    ])
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return undefined
+    const error = (body as Record<string, unknown>).error
+    if (!error || typeof error !== 'object' || Array.isArray(error)) return undefined
+    const code = (error as Record<string, unknown>).code
+    const projected = sanitizeOwnerPublicReadbackEvidence({
+      case: 'store_b_after_denied_write',
+      response: 'response',
+      httpStatus: response.status(),
+      errorCode: code,
+      visibleState: 'unknown',
+    })
+    return projected?.errorCode
+  } catch {
+    return undefined
+  } finally {
+    if (timer) clearTimeout(timer)
+  }
 }
 
 test('configured Owner setup, exact-store edits, approval, projection, and denials', async ({
@@ -1006,27 +1111,46 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
         ),
         'Owner writing Store B',
       )
-      const publicPage = await openPublicStore(browser, input.storeB.slug)
-      anonymousContext = publicPage.context
-      await expect(publicPage.page.getByRole('heading', { name: 'Sibling Market' })).toBeVisible()
-      await expect(publicPage.page.getByRole('link', { name: 'Call 785-555-0182' })).toBeVisible()
-      await publicPage.context.close()
-      anonymousContext = undefined
+      const publicContext = await browser.newContext({ baseURL: input.origin })
+      anonymousContext = publicContext
+      const publicPage = await publicContext.newPage()
+      const observation = observePublicStoreDetails(publicPage, input.storeB.slug)
+      try {
+        await publicPage.goto(`/stores/${encodeURIComponent(input.storeB.slug)}`)
+        try {
+          await expect(publicPage.getByRole('heading', { name: 'Sibling Market' })).toBeVisible()
+          await expect(publicPage.getByRole('link', { name: 'Call 785-555-0182' })).toBeVisible()
+        } catch (error) {
+          if (error instanceof Error) {
+            const ownerPublicReadback = await publicStoreReadbackFailure(publicPage, await observation)
+            if (ownerPublicReadback) Object.assign(error, { ownerPublicReadback })
+          }
+          throw error
+        }
+      } finally {
+        await publicContext.close()
+        anonymousContext = undefined
+        await observation
+      }
     })
 
     await step(
       'Site Admin revocation denies the next request in Owner A’s same session',
       async () => {
-        await admin.goto('/admin/partners')
-        await admin.getByLabel('Exact claim ID', { exact: true }).fill(input.claimId)
-        await admin.getByRole('button', { name: 'Open exact claim', exact: true }).click()
-        await expect(admin.getByRole('heading', { name: 'Claim case' })).toBeVisible()
-        await admin.getByLabel('Decision', { exact: true }).selectOption('revoke')
-        await admin.getByLabel('Reason code', { exact: true }).fill('owner_authority_reviewed')
-        await admin.getByLabel('Decision key', { exact: true }).fill('issue579-owner-revoke')
-        await admin.getByRole('button', { name: /Apply decision/ }).click()
-        await admin.getByRole('button', { name: /Confirm revoke decision/ }).click()
-        await expect(admin.getByText(/revoked/).first()).toBeVisible()
+        await admin.goto('/admin/access')
+        const ownerScope = admin
+          .getByRole('list', { name: 'Store Owner scopes' })
+          .getByRole('listitem')
+          .filter({ hasText: new RegExp(`Claim ${input.claimId}, version`) })
+        await expect(ownerScope).toHaveCount(1)
+        await expect(ownerScope).toContainText('Store Owner — active')
+        await ownerScope.getByRole('button', { name: /^Preview revoke .+ Owner scope$/ }).click()
+        await expect(ownerScope.getByText(/^Confirm exact Store Owner scope:/)).toBeVisible()
+        await ownerScope
+          .getByLabel('Owner administrative reason code', { exact: true })
+          .fill('owner_authority_reviewed')
+        await ownerScope.getByRole('button', { name: /^Confirm revoke .+ Owner scope$/ }).click()
+        await expect(ownerScope).toContainText('Store Owner — revoked')
 
         const ownerBearer = ownerAToken()
         if (!ownerBearer) throw new Error('Original Owner A session token was not observed')
