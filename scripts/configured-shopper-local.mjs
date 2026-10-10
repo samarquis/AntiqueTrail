@@ -13,11 +13,52 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 export const CLI_VERSION = '2.115.0'
 const readinessFailureMetadata = new WeakMap()
 const readinessRequestMetadata = new WeakMap()
+const commandFailureMetadata = new WeakMap()
+const startupFailureMetadata = new WeakMap()
+const startupSteps = new Set([
+  'unknown',
+  'source-copy',
+  'port-config',
+  'source-identity',
+  'docker-proxy',
+  'docker-network',
+  'cli-resolution',
+  'supabase-start',
+  'container-verification',
+  'supabase-status',
+  'status-parse',
+  'credential-check',
+  'gateway-setup',
+  'fixture-setup',
+  'auth-health',
+  'actor-create',
+  'actor-profile',
+  'actor-token',
+  'actor-session',
+  'edge-spawn',
+  'edge-readiness',
+  'complete',
+])
+const startupFailureCategories = new Set([
+  'command_exit',
+  'command_spawn',
+  'command_timeout',
+  'command_signal',
+  'aborted',
+  'fetchFailure',
+  'responseParseFailure',
+  'httpFailure',
+  'invalidResponse',
+  'readiness_exhausted',
+  'identity_mismatch',
+  'unknown',
+])
 const readinessFailureCategories = new Set([
   'fetchFailure',
   'responseParseFailure',
   'httpFailure',
   'invalidResponse',
+  'readiness_exhausted',
 ])
 const readinessSafeErrorCodes = new Set([
   'ALPHA_AUTH_REQUIRED',
@@ -60,6 +101,48 @@ function tagReadinessFailure(error, category, status, { safeErrorCode, transport
       safeErrorCode: readinessSafeErrorCodes.has(safeErrorCode) ? safeErrorCode : null,
       transportCode: readinessTransportCodes.has(transportCode) ? transportCode : null,
     })
+}
+
+export function runAtLocalStartupStep(run, step, operation) {
+  run.startupStep = startupSteps.has(step) ? step : 'unknown'
+  return operation()
+}
+
+export function tagLocalStartupFailure(error, category) {
+  if (
+    error !== null &&
+    (typeof error === 'object' || typeof error === 'function') &&
+    startupFailureCategories.has(category)
+  )
+    startupFailureMetadata.set(error, category)
+}
+
+export function captureLocalStartupFailure(run, error) {
+  const objectLike = error !== null && (typeof error === 'object' || typeof error === 'function')
+  const explicitCategory = objectLike ? startupFailureMetadata.get(error) : undefined
+  const command = objectLike ? commandFailureMetadata.get(error) : undefined
+  const readiness = objectLike ? readinessFailureMetadata.get(error) : undefined
+  const candidate = explicitCategory ?? command?.category ?? readiness?.category
+  const category = startupFailureCategories.has(candidate) ? candidate : 'unknown'
+  const commandExitCode =
+    category === 'command_exit' &&
+    Number.isInteger(command?.commandExitCode) &&
+    command.commandExitCode >= 1 &&
+    command.commandExitCode <= 255
+      ? command.commandExitCode
+      : null
+  return {
+    step: startupSteps.has(run?.startupStep) ? run.startupStep : 'unknown',
+    category,
+    httpStatus: isReadinessHttpStatus(readiness?.status) ? readiness.status : null,
+    safeErrorCode: readinessSafeErrorCodes.has(readiness?.safeErrorCode)
+      ? readiness.safeErrorCode
+      : null,
+    transportCode: readinessTransportCodes.has(readiness?.transportCode)
+      ? readiness.transportCode
+      : null,
+    commandExitCode,
+  }
 }
 
 function responseErrorCode(data) {
@@ -187,18 +270,27 @@ export function command(
       if (stderr.length > 4_000_000) stderr = stderr.slice(-4_000_000)
     })
     let timedOut = false
+    let settled = false
     const timer = setTimeout(() => {
       timedOut = true
       child.kill()
     }, timeout)
     child.on('error', (error) => {
+      if (settled) return
+      settled = true
       clearTimeout(timer)
+      const category = timedOut ? 'command_timeout' : signal?.aborted ? 'aborted' : 'command_spawn'
+      commandFailureMetadata.set(error, { category, commandExitCode: null })
       reject(error)
     })
-    child.on('close', (code) => {
+    child.on('close', (code, signalCode) => {
+      if (settled) return
+      settled = true
       clearTimeout(timer)
       if (timedOut) {
-        reject(new Error(`${path.basename(file)} timed out after ${timeout}ms`))
+        const error = new Error(`${path.basename(file)} timed out after ${timeout}ms`)
+        commandFailureMetadata.set(error, { category: 'command_timeout', commandExitCode: null })
+        reject(error)
         return
       }
       if (code === 0) resolve(stdout)
@@ -210,9 +302,21 @@ export function command(
         } catch {
           /* Only structured error output is included. */
         }
-        reject(
-          new Error(`${path.basename(file)} exited ${code}: ${summary} ${stderr.slice(-2000)}`),
+        const error = new Error(
+          `${path.basename(file)} exited ${code}: ${summary} ${stderr.slice(-2000)}`,
         )
+        const category = signal?.aborted
+          ? 'aborted'
+          : Number.isInteger(code) && code >= 1 && code <= 255
+            ? 'command_exit'
+            : typeof signalCode === 'string' && signalCode.length > 0
+              ? 'command_signal'
+              : 'unknown'
+        commandFailureMetadata.set(error, {
+          category,
+          commandExitCode: category === 'command_exit' ? code : null,
+        })
+        reject(error)
       }
     })
     child.stdin.on('error', () => {})
@@ -516,7 +620,8 @@ export async function waitForLocalServiceReadiness(
       Object.entries(categoryCounts)
         .filter(([, count]) => count > 0)
         .sort((left, right) => right[1] - left[1])[0] ?? []
-    if (readinessFailureCategories.has(category)) tagReadinessFailure(error, category)
+    if (run.users.length) tagReadinessFailure(error, 'readiness_exhausted')
+    else if (readinessFailureCategories.has(category)) tagReadinessFailure(error, category)
     throw error
   }
 }
@@ -562,6 +667,7 @@ export function createLocalService({
       'project_id = "' + projectId + '"\n',
     )
   }
+  run.startupStep = 'unknown'
   const { id, projectId, directory } = run
   const runCommand = (file, args, options = {}) => command(file, args, { ...options, signal })
   let networkCreated = Boolean(resumeDirectory)
@@ -626,194 +732,236 @@ export function createLocalService({
   async function start() {
     if (resumeDirectory) throw new Error('Recovery supports cleanup only')
     signal?.throwIfAborted()
-    if (
-      !fs
-        .readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
-        .includes(`supabase@${CLI_VERSION} start`)
-    )
-      throw new Error('Probe CLI pin differs from CI')
-    run.cliVersion = CLI_VERSION
-    for (const name of ['migrations', 'functions'])
-      fs.cpSync(path.join(ROOT, 'supabase', name), path.join(directory, 'supabase', name), {
-        recursive: true,
-        filter: (file) => !['.env', '.temp'].includes(path.basename(file)),
-      })
-    if (signupJourney)
-      fs.cpSync(
-        path.join(ROOT, 'supabase', 'templates'),
-        path.join(directory, 'supabase', 'templates'),
-        { recursive: true },
+    runAtLocalStartupStep(run, 'source-copy', () => {
+      if (
+        !fs
+          .readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
+          .includes(`supabase@${CLI_VERSION} start`)
       )
-    fs.copyFileSync(path.join(ROOT, 'supabase/seed.sql'), path.join(directory, 'supabase/seed.sql'))
-    run.origin = browserOrigin ?? 'http://127.0.0.1:4173'
-    const ports = new Set()
-    const originPort = Number(new URL(run.origin).port)
-    while (ports.size < 7) {
-      const port = await freePort()
-      if (port !== originPort) ports.add(port)
-    }
-    const [api, db, shadow, mail, smtp, pop3, inspector] = [...ports]
-    run.endpoint = `http://127.0.0.1:${api}`
-    run.mailEndpoint = `http://127.0.0.1:${mail}`
-    const registrationSettings = signupJourney
-      ? registrationEnvironment({
-          appOrigin: run.origin,
-          supabaseOrigin: 'http://kong:8000',
-          mailOrigin: run.mailEndpoint,
-          secret: crypto.randomBytes(32).toString('hex'),
+        throw new Error('Probe CLI pin differs from CI')
+      run.cliVersion = CLI_VERSION
+      for (const name of ['migrations', 'functions'])
+        fs.cpSync(path.join(ROOT, 'supabase', name), path.join(directory, 'supabase', name), {
+          recursive: true,
+          filter: (file) => !['.env', '.temp'].includes(path.basename(file)),
         })
-      : ''
-    const config = localProjectConfig(
-      fs.readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8'),
-      { projectId, api, db, shadow, mail, smtp, pop3, inspector, origin: run.origin },
-      { signupJourney },
-    )
-    fs.writeFileSync(path.join(directory, 'supabase/config.toml'), config)
-    run.sourceSha = (await runCommand('git', ['rev-parse', 'HEAD'])).trim()
-    run.sourceDirty = Boolean(
-      (await runCommand('git', ['status', '--porcelain', '--untracked-files=no'])).trim(),
-    )
-    run.schemaIdentity = digestFiles(path.join(directory, 'supabase/migrations'))
-    run.functionIdentity = digestFiles(path.join(directory, 'supabase/functions'))
-    run.configIdentity = crypto.createHash('sha256').update(config).digest('hex')
-    run.fixtureIdentity = crypto
-      .createHash('sha256')
-      .update(fs.readFileSync(path.join(ROOT, 'supabase/seed.sql')))
-      .update(fs.readFileSync(path.join(ROOT, 'scripts/configured-shopper-fixtures.sql')))
-      .digest('hex')
-    validateOwner(run)
-    proxy = await dockerLoopbackProxy(run)
-    networkCreated = true
-    await runCommand('docker', [
-      'network',
-      'create',
-      '--label',
-      `antique.probe=${id}`,
-      '--opt',
-      'com.docker.network.bridge.host_binding_ipv4=127.0.0.1',
-      projectId,
-    ])
-    networkCreated = true
-    if (signupJourney)
-      fs.writeFileSync(
-        path.join(directory, 'supabase/functions/.env'),
-        `PUBLIC_APP_ORIGIN=${run.origin}\n${registrationSettings}\n`,
-        { mode: 0o600 },
+      if (signupJourney)
+        fs.cpSync(
+          path.join(ROOT, 'supabase', 'templates'),
+          path.join(directory, 'supabase', 'templates'),
+          { recursive: true },
+        )
+      fs.copyFileSync(
+        path.join(ROOT, 'supabase/seed.sql'),
+        path.join(directory, 'supabase/seed.sql'),
       )
-    await cli(
-      ['start', '--workdir', directory, '--network-id', projectId, '--exclude', exclusions],
-      { env: proxy.env, signal, timeout: 1_200_000 },
+    })
+    let registrationSettings = ''
+    let config
+    await runAtLocalStartupStep(run, 'port-config', async () => {
+      run.origin = browserOrigin ?? 'http://127.0.0.1:4173'
+      const ports = new Set()
+      const originPort = Number(new URL(run.origin).port)
+      while (ports.size < 7) {
+        const port = await freePort()
+        if (port !== originPort) ports.add(port)
+      }
+      const [api, db, shadow, mail, smtp, pop3, inspector] = [...ports]
+      run.endpoint = `http://127.0.0.1:${api}`
+      run.mailEndpoint = `http://127.0.0.1:${mail}`
+      registrationSettings = signupJourney
+        ? registrationEnvironment({
+            appOrigin: run.origin,
+            supabaseOrigin: 'http://kong:8000',
+            mailOrigin: run.mailEndpoint,
+            secret: crypto.randomBytes(32).toString('hex'),
+          })
+        : ''
+      config = localProjectConfig(
+        fs.readFileSync(path.join(ROOT, 'supabase/config.toml'), 'utf8'),
+        { projectId, api, db, shadow, mail, smtp, pop3, inspector, origin: run.origin },
+        { signupJourney },
+      )
+      fs.writeFileSync(path.join(directory, 'supabase/config.toml'), config)
+    })
+    await runAtLocalStartupStep(run, 'source-identity', async () => {
+      run.sourceSha = (await runCommand('git', ['rev-parse', 'HEAD'])).trim()
+      run.sourceDirty = Boolean(
+        (await runCommand('git', ['status', '--porcelain', '--untracked-files=no'])).trim(),
+      )
+      run.schemaIdentity = digestFiles(path.join(directory, 'supabase/migrations'))
+      run.functionIdentity = digestFiles(path.join(directory, 'supabase/functions'))
+      run.configIdentity = crypto.createHash('sha256').update(config).digest('hex')
+      run.fixtureIdentity = crypto
+        .createHash('sha256')
+        .update(fs.readFileSync(path.join(ROOT, 'supabase/seed.sql')))
+        .update(fs.readFileSync(path.join(ROOT, 'scripts/configured-shopper-fixtures.sql')))
+        .digest('hex')
+      validateOwner(run)
+    })
+    proxy = await runAtLocalStartupStep(run, 'docker-proxy', () => dockerLoopbackProxy(run))
+    networkCreated = true
+    await runAtLocalStartupStep(run, 'docker-network', () =>
+      runCommand('docker', [
+        'network',
+        'create',
+        '--label',
+        `antique.probe=${id}`,
+        '--opt',
+        'com.docker.network.bridge.host_binding_ipv4=127.0.0.1',
+        projectId,
+      ]),
     )
-    await verifyContainers()
-    const status = JSON.parse(
-      await cli(['status', '--workdir', directory, '-o', 'json'], { signal, timeout: 300_000 }),
+    networkCreated = true
+    const cliPath = await runAtLocalStartupStep(run, 'cli-resolution', () => cliBinary(signal))
+    await runAtLocalStartupStep(run, 'supabase-start', async () => {
+      if (signupJourney)
+        fs.writeFileSync(
+          path.join(directory, 'supabase/functions/.env'),
+          `PUBLIC_APP_ORIGIN=${run.origin}\n${registrationSettings}\n`,
+          { mode: 0o600 },
+        )
+      await command(
+        cliPath,
+        ['start', '--workdir', directory, '--network-id', projectId, '--exclude', exclusions],
+        { env: proxy.env, signal, timeout: 1_200_000 },
+      )
+    })
+    await runAtLocalStartupStep(run, 'container-verification', () => verifyContainers())
+    const statusOutput = await runAtLocalStartupStep(run, 'supabase-status', () =>
+      command(cliPath, ['status', '--workdir', directory, '-o', 'json'], {
+        signal,
+        timeout: 300_000,
+      }),
     )
+    const status = runAtLocalStartupStep(run, 'status-parse', () => JSON.parse(statusOutput))
     run.anonKey = status.ANON_KEY
-    if (!run.anonKey || !status.SERVICE_ROLE_KEY || !status.JWT_SECRET)
-      throw new Error('Local service credentials unavailable')
-    if (includeServiceRoleKey) run.serviceRoleKey = status.SERVICE_ROLE_KEY
-    // This is a server-only catalog service credential, never a shopper identity.
-    const enc = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
-    const unsigned = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'public_catalog_gateway', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 3600 })}`
-    const gateway = `${unsigned}.${crypto.createHmac('sha256', status.JWT_SECRET).update(unsigned).digest('base64url')}`
-    const functionEnv = [
-      `PUBLIC_CATALOG_GATEWAY_JWT=${gateway}`,
-      `PUBLIC_CATALOG_RATE_SALT=${crypto.randomBytes(32).toString('hex')}`,
-      `APP_ORIGIN=${run.origin}`,
-      `PUBLIC_APP_ORIGIN=${run.origin}`,
-      ...(partnerEnvironment
-        ? [
-            'PARTNER_SYNTHETIC_ENABLED=true',
-            `PARTNER_EMAIL_HMAC_SECRET=${partnerEnvironment.emailHmacSecret}`,
-            'PARTNER_EMAIL_HMAC_KEY_VERSION=1',
-            `PARTNER_EVIDENCE_HMAC_SECRET=${partnerEnvironment.evidenceHmacSecret}`,
-          ]
-        : []),
-      ...(signupJourney ? [registrationSettings] : []),
-    ].join('\n')
-    fs.writeFileSync(path.join(directory, 'supabase/functions/.env'), `${functionEnv}\n`, {
-      mode: 0o600,
+    runAtLocalStartupStep(run, 'credential-check', () => {
+      if (!run.anonKey || !status.SERVICE_ROLE_KEY || !status.JWT_SECRET)
+        throw new Error('Local service credentials unavailable')
+      if (includeServiceRoleKey) run.serviceRoleKey = status.SERVICE_ROLE_KEY
+    })
+    await runAtLocalStartupStep(run, 'gateway-setup', async () => {
+      // This is a server-only catalog service credential, never a shopper identity.
+      const enc = (value) => Buffer.from(JSON.stringify(value)).toString('base64url')
+      const unsigned = `${enc({ alg: 'HS256', typ: 'JWT' })}.${enc({ role: 'public_catalog_gateway', iss: 'supabase', exp: Math.floor(Date.now() / 1000) + 3600 })}`
+      const gateway = `${unsigned}.${crypto.createHmac('sha256', status.JWT_SECRET).update(unsigned).digest('base64url')}`
+      const functionEnv = [
+        `PUBLIC_CATALOG_GATEWAY_JWT=${gateway}`,
+        `PUBLIC_CATALOG_RATE_SALT=${crypto.randomBytes(32).toString('hex')}`,
+        `APP_ORIGIN=${run.origin}`,
+        `PUBLIC_APP_ORIGIN=${run.origin}`,
+        ...(partnerEnvironment
+          ? [
+              'PARTNER_SYNTHETIC_ENABLED=true',
+              `PARTNER_EMAIL_HMAC_SECRET=${partnerEnvironment.emailHmacSecret}`,
+              'PARTNER_EMAIL_HMAC_KEY_VERSION=1',
+              `PARTNER_EVIDENCE_HMAC_SECRET=${partnerEnvironment.evidenceHmacSecret}`,
+            ]
+          : []),
+        ...(signupJourney ? [registrationSettings] : []),
+      ].join('\n')
+      fs.writeFileSync(path.join(directory, 'supabase/functions/.env'), `${functionEnv}\n`, {
+        mode: 0o600,
+      })
     })
     // Match the CI test role and grants, confined to this uniquely owned database.
-    const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
-    const grantSql = ci.match(/create extension if not exists pgtap[\s\S]*?reset role;/)?.[0]
-    if (!grantSql) throw new Error('CI test role setup unavailable')
-    await runCommand(
-      'docker',
-      [
-        'exec',
-        '-i',
-        '-e',
-        'PGPASSWORD=postgres',
-        `supabase_db_${projectId}`,
-        'psql',
-        '-U',
-        'supabase_admin',
-        '-d',
-        'postgres',
-        '-v',
-        'ON_ERROR_STOP=1',
-      ],
-      { input: grantSql },
-    )
-    await sql(fs.readFileSync(path.join(ROOT, 'scripts/configured-shopper-fixtures.sql'), 'utf8'))
-    if (signupJourney)
-      await sql(
-        "update app_private.account_registration_config set mode='public',stage_receipt_id=null,version=version+1 where id=1;",
+    await runAtLocalStartupStep(run, 'fixture-setup', async () => {
+      const ci = fs.readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')
+      const grantSql = ci.match(/create extension if not exists pgtap[\s\S]*?reset role;/)?.[0]
+      if (!grantSql) throw new Error('CI test role setup unavailable')
+      await runCommand(
+        'docker',
+        [
+          'exec',
+          '-i',
+          '-e',
+          'PGPASSWORD=postgres',
+          `supabase_db_${projectId}`,
+          'psql',
+          '-U',
+          'supabase_admin',
+          '-d',
+          'postgres',
+          '-v',
+          'ON_ERROR_STOP=1',
+        ],
+        { input: grantSql },
       )
+      await sql(fs.readFileSync(path.join(ROOT, 'scripts/configured-shopper-fixtures.sql'), 'utf8'))
+      if (signupJourney)
+        await sql(
+          "update app_private.account_registration_config set mode='public',stage_receipt_id=null,version=version+1 where id=1;",
+        )
+    })
     run.users = []
     let authReady = false
-    for (let attempt = 0; attempt < 30; attempt++) {
-      signal?.throwIfAborted()
-      try {
-        await request('/auth/v1/health', { key: run.anonKey, method: 'GET' })
-        authReady = true
-        break
-      } catch {
-        /* GoTrue may still be applying its local schema migrations. */
+    await runAtLocalStartupStep(run, 'auth-health', async () => {
+      for (let attempt = 0; attempt < 30; attempt++) {
+        signal?.throwIfAborted()
+        try {
+          await request('/auth/v1/health', { key: run.anonKey, method: 'GET' })
+          authReady = true
+          break
+        } catch {
+          /* GoTrue may still be applying its local schema migrations. */
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000))
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-    }
-    if (!authReady) throw new Error('Local Auth did not become healthy')
+      if (!authReady) throw new Error('Local Auth did not become healthy')
+    })
     for (const alias of createTestUsers ? ['shopper-a', 'shopper-b'] : []) {
-      signal?.throwIfAborted()
+      runAtLocalStartupStep(run, 'actor-create', () => signal?.throwIfAborted())
       const email = `${alias}-${id}@probe.invalid`,
         password = crypto.randomBytes(32).toString('base64url')
-      const user = await request('/auth/v1/admin/users', {
-        key: run.anonKey,
-        token: status.SERVICE_ROLE_KEY,
-        body: { email, password, email_confirm: true },
-      })
-      if (!/^[a-f0-9-]{36}$/.test(user.id)) throw new Error('Malformed local identity')
-      await sql(
-        `insert into app_private.profiles(user_id,age_18_attested_at) values ('${user.id}',now()) on conflict(user_id) do update set age_18_attested_at=excluded.age_18_attested_at; insert into app_private.role_grants(subject_user_id,role,state) values ('${user.id}','shopper','active');`,
+      const user = await runAtLocalStartupStep(run, 'actor-create', () =>
+        request('/auth/v1/admin/users', {
+          key: run.anonKey,
+          token: status.SERVICE_ROLE_KEY,
+          body: { email, password, email_confirm: true },
+        }),
       )
-      const session = await request('/auth/v1/token?grant_type=password', {
-        key: run.anonKey,
-        body: { email, password },
-      })
+      if (!/^[a-f0-9-]{36}$/.test(user.id)) throw new Error('Malformed local identity')
+      await runAtLocalStartupStep(run, 'actor-profile', () =>
+        sql(
+          `insert into app_private.profiles(user_id,age_18_attested_at) values ('${user.id}',now()) on conflict(user_id) do update set age_18_attested_at=excluded.age_18_attested_at; insert into app_private.role_grants(subject_user_id,role,state) values ('${user.id}','shopper','active');`,
+        ),
+      )
+      const session = await runAtLocalStartupStep(run, 'actor-token', () =>
+        request('/auth/v1/token?grant_type=password', {
+          key: run.anonKey,
+          body: { email, password },
+        }),
+      )
       const actor = { id: user.id, token: session.access_token, email, password }
       if (session.user?.id !== user.id || !actor.token)
         throw new Error('Password grant did not establish the expected identity')
-      const registered = await request('/rest/v1/rpc/register_current_session', {
-        key: run.anonKey,
-        token: actor.token,
-        schema: 'app_public',
-        body: { access_token_expires_at: session.expires_at * 1000 },
-      })
+      const registered = await runAtLocalStartupStep(run, 'actor-session', () =>
+        request('/rest/v1/rpc/register_current_session', {
+          key: run.anonKey,
+          token: actor.token,
+          schema: 'app_public',
+          body: { access_token_expires_at: session.expires_at * 1000 },
+        }),
+      )
       if (registered !== true) throw new Error('Application session registration failed')
       run.users.push(actor)
     }
     // A separate CLI process owns the Edge runtime; capture no potentially secret output.
     const args = ['functions', 'serve', '--workdir', directory, '--network-id', projectId]
-    serving = spawn(await cliBinary(), args, {
-      cwd: ROOT,
-      windowsHide: true,
-      stdio: 'ignore',
-      env: proxy.env,
-    })
+    serving = runAtLocalStartupStep(run, 'edge-spawn', () =>
+      spawn(cliPath, args, {
+        cwd: ROOT,
+        windowsHide: true,
+        stdio: 'ignore',
+        env: proxy.env,
+      }),
+    )
     serving.on('error', () => {})
-    await waitForLocalServiceReadiness(run, request, signal, undefined, () => serving)
+    await runAtLocalStartupStep(run, 'edge-readiness', () =>
+      waitForLocalServiceReadiness(run, request, signal, undefined, () => serving),
+    )
+    runAtLocalStartupStep(run, 'complete', () => {})
     return run
   }
   async function cleanup() {

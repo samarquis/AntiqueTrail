@@ -1,7 +1,15 @@
 /* global AbortController, Buffer, process */
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { loopbackRequest, waitForLocalServiceReadiness } from './configured-shopper-local.mjs'
+import {
+  captureLocalStartupFailure,
+  command,
+  loopbackRequest,
+  runAtLocalStartupStep,
+  tagLocalStartupFailure,
+  waitForLocalServiceReadiness,
+} from './configured-shopper-local.mjs'
+import { projectPrimaryFailure } from './issue-568-private-stop-proof-report.mjs'
 
 const localRun = (users = [{ token: 'test-session-token' }]) => ({
   anonKey: 'test-anon-key',
@@ -806,4 +814,151 @@ test('serving snapshots reject malformed values and exceptions without replacing
     assert.equal(diagnostic.failures.last.servingExitCode, null)
     assert.doesNotMatch(writes.join(''), /PRIVATE_/)
   }
+})
+
+test('command child exit metadata is trusted and output stays outside the projection', async () => {
+  const sentinel = 'PRIVATE_CHILD_OUTPUT_639'
+  let failure
+  await assert.rejects(
+    command(
+      process.execPath,
+      [
+        '-e',
+        `process.stdout.write('${sentinel}'); process.stderr.write('${sentinel}'); process.exit(7)`,
+      ],
+      { timeout: 5000 },
+    ),
+    (error) => {
+      failure = error
+      return true
+    },
+  )
+  const captured = captureLocalStartupFailure({ startupStep: 'supabase-start' }, failure)
+  const projection = projectPrimaryFailure('local-services', captured)
+  assert.deepEqual(projection.startupFailure, {
+    step: 'supabase-start',
+    category: 'command_exit',
+    httpStatus: null,
+    safeErrorCode: null,
+    transportCode: null,
+    commandExitCode: 7,
+  })
+  assert.doesNotMatch(JSON.stringify(projection), new RegExp(sentinel))
+  assert.equal(
+    await command(process.execPath, ['-e', "process.stdout.write('ok')"], { timeout: 5000 }),
+    'ok',
+  )
+
+  const forged = Object.assign(new Error('node exited 7'), { commandExitCode: 7 })
+  assert.equal(
+    captureLocalStartupFailure({ startupStep: 'supabase-start' }, forged).commandExitCode,
+    null,
+  )
+  assert.equal(
+    captureLocalStartupFailure({ startupStep: 'supabase-start' }, forged).category,
+    'unknown',
+  )
+})
+
+test('command spawn, timeout, abort, and signal events have distinct safe categories', async () => {
+  const missing = await command(process.execPath + '.missing-private-proof', [], {
+    timeout: 5000,
+  }).catch((error) => error)
+  assert.equal(
+    captureLocalStartupFailure({ startupStep: 'cli-resolution' }, missing).category,
+    'command_spawn',
+  )
+  assert.equal(
+    captureLocalStartupFailure({ startupStep: 'cli-resolution' }, missing).commandExitCode,
+    null,
+  )
+
+  const timedOut = await command(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+    timeout: 40,
+  }).catch((error) => error)
+  assert.equal(
+    captureLocalStartupFailure({ startupStep: 'supabase-start' }, timedOut).category,
+    'command_timeout',
+  )
+  assert.equal(
+    captureLocalStartupFailure({ startupStep: 'supabase-start' }, timedOut).commandExitCode,
+    null,
+  )
+
+  const controller = new AbortController()
+  controller.abort()
+  const aborted = await command(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+    signal: controller.signal,
+  }).catch((error) => error)
+  assert.equal(
+    captureLocalStartupFailure({ startupStep: 'supabase-start' }, aborted).category,
+    'aborted',
+  )
+  assert.equal(
+    captureLocalStartupFailure({ startupStep: 'supabase-start' }, aborted).commandExitCode,
+    null,
+  )
+})
+
+if (process.platform !== 'win32')
+  test('command signal termination has a null exit code', async () => {
+    const signaled = await command(
+      process.execPath,
+      ['-e', "process.kill(process.pid, 'SIGTERM')"],
+      { timeout: 5000 },
+    ).catch((error) => error)
+    assert.equal(
+      captureLocalStartupFailure({ startupStep: 'supabase-start' }, signaled).category,
+      'command_signal',
+    )
+    assert.equal(
+      captureLocalStartupFailure({ startupStep: 'supabase-start' }, signaled).commandExitCode,
+      null,
+    )
+  })
+
+test('controlled startup checkpoints retain step and classify source identity mismatch', async () => {
+  const run = {}
+  for (const step of ['cli-resolution', 'supabase-start', 'status-parse']) {
+    const thrown = new Error('PRIVATE_STARTUP_TEXT')
+    await assert.rejects(
+      Promise.resolve().then(() => runAtLocalStartupStep(run, step, () => Promise.reject(thrown))),
+      thrown,
+    )
+    assert.deepEqual(captureLocalStartupFailure(run, thrown), {
+      step,
+      category: 'unknown',
+      httpStatus: null,
+      safeErrorCode: null,
+      transportCode: null,
+      commandExitCode: null,
+    })
+  }
+  const responseFailure = await loopbackRequest(
+    'http://127.0.0.1:54321',
+    '/functions/v1/public-catalog',
+    {
+      key: 'test-key',
+      fetcher: async () => ({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: { code: 'BOOT_ERROR' }, message: 'PRIVATE_RESPONSE_MESSAGE' }),
+      }),
+    },
+  ).catch((error) => error)
+  runAtLocalStartupStep(run, 'fixture-setup', () => {})
+  assert.deepEqual(captureLocalStartupFailure(run, responseFailure), {
+    step: 'fixture-setup',
+    category: 'httpFailure',
+    httpStatus: 503,
+    safeErrorCode: 'BOOT_ERROR',
+    transportCode: null,
+    commandExitCode: null,
+  })
+  const mismatch = new Error('private source identity details')
+  runAtLocalStartupStep(run, 'source-identity', () =>
+    tagLocalStartupFailure(mismatch, 'identity_mismatch'),
+  )
+  assert.equal(captureLocalStartupFailure(run, mismatch).step, 'source-identity')
+  assert.equal(captureLocalStartupFailure(run, mismatch).category, 'identity_mismatch')
 })
