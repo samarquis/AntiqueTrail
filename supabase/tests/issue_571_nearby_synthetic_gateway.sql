@@ -845,9 +845,94 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('4
  'P0001','synthetic_catalog_outside_stage','outside-alpha signal remains available for Edge routing');
 reset role;
 select ok(not exists(select 1 from pg_attribute where attrelid='release_private.public_catalog_rate_windows'::regclass
- and not attisdropped and attname in ('device_latitude','device_longitude','p_device_latitude','p_device_longitude'))
+ and not attisdropped and attname in ('device_latitude','device_longitude','p_device_latitude','p_device_longitude','p_device_radius_miles'))
  and exists(select 1 from release_private.public_catalog_rate_windows
  where key_hash=decode(repeat('f',64),'hex') and operation='nearby-list'),
- 'nearby rate evidence contains only existing center-free fields');
+ 'nearby rate evidence contains no request-center fields');
+
+-- Local catalog-only admission fixture; transaction rollback removes its binding.
+create temporary table issue_644_public_test_runtime as
+select version,first_started_at,active_binding_id from public_test_private.runtime where id=1;
+do $$
+declare r public_test_private.runtime%rowtype;
+begin
+ select * into r from public_test_private.runtime where id=1;
+ if not found then raise exception 'issue_644_public_test_runtime_missing';end if;
+ if r.active_binding_id is not null then raise exception 'issue_644_public_test_active_binding_prerequisite';end if;
+if r.first_started_at is not null and statement_timestamp()+interval '1 day'>r.first_started_at+interval '30 days' then
+  raise exception 'issue_644_public_test_first_started_at_window_prerequisite';end if;
+end $$;
+select is((select active_binding_id from issue_644_public_test_runtime),null::uuid,
+ 'public-test setup starts with no active binding');
+create temporary table issue_644_public_test_spec as
+select jsonb_build_object(
+ 'backendRef','uaupykgpegbseboklubv','origin','https://antique-trail.vercel.app',
+ 'sourceSha',repeat('a',40),'artifactDigest',repeat('b',64),'configurationDigest',repeat('c',64),
+ 'schemaDigest',repeat('d',64),'evidenceDigest',repeat('e',64),
+ 'decisionRef','isolated #644 catalog test transaction',
+ -- Existing 0127 pull URL is a syntactic fixture only, not #644 review or approval evidence.
+ 'reviewRef','https://github.com/samarquis/AntiqueTrail/pull/376',
+ 'operatorRef','local test','stopOwner','local test','capabilities',jsonb_build_array('catalog'),
+ 'storeIds',jsonb_build_array(
+  '00000000-0000-4000-8000-000000001001','00000000-0000-4000-8000-000000001002',
+  '00000000-0000-4000-8000-000000001003','00000000-0000-4000-8000-000000001004',
+  '00000000-0000-4000-8000-000000001005','00000000-0000-4000-8000-000000001006',
+  '00000000-0000-4000-8000-000000001007','00000000-0000-4000-8000-000000001008',
+  '00000000-0000-4000-8000-000000001009','00000000-0000-4000-8000-000000001010',
+  '00000000-0000-4000-8000-000000001011','00000000-0000-4000-8000-000000001012'),
+ 'startsAt',statement_timestamp()-interval '1 minute','expiresAt',statement_timestamp()+interval '1 day',
+ 'testers',jsonb_build_array()) spec;
+create temporary table issue_644_public_test_binding as
+select public_test_private.prepare(s.spec,'99000000-0000-4000-8000-000000000041',r.version) binding_id,r.version expected_version
+from issue_644_public_test_spec s cross join issue_644_public_test_runtime r;
+select is(public_test_private.activate(b.binding_id,b.expected_version),b.expected_version+1,
+ 'operator activates the isolated catalog-only fixture at current runtime version')
+from issue_644_public_test_binding b;
+select is((select active_binding_id from public_test_private.runtime where id=1),
+ (select binding_id from issue_644_public_test_binding),'operator sees the active isolated catalog binding');
+select set_config('request.headers','{"origin":"https://antique-trail.vercel.app"}',true);
+set local role public_catalog_gateway;
+select is((select array_agg((x->>'id')::uuid order by (x->>'id')::uuid)
+ from jsonb_array_elements(app_public.public_test_catalog_gateway_request(repeat('c9',32),'list',
+ '{"p_q":null,"p_category":null,"p_area":null}'::jsonb)) x),
+ array['00000000-0000-4000-8000-000000001001'::uuid,'00000000-0000-4000-8000-000000001002'::uuid,'00000000-0000-4000-8000-000000001003'::uuid,
+ '00000000-0000-4000-8000-000000001004'::uuid,'00000000-0000-4000-8000-000000001005'::uuid,'00000000-0000-4000-8000-000000001006'::uuid,
+ '00000000-0000-4000-8000-000000001007'::uuid,'00000000-0000-4000-8000-000000001008'::uuid,'00000000-0000-4000-8000-000000001009'::uuid,
+ '00000000-0000-4000-8000-000000001010'::uuid,'00000000-0000-4000-8000-000000001011'::uuid,'00000000-0000-4000-8000-000000001012'::uuid],
+ 'public-test catalog list admits exactly the twelve supplied seed IDs');
+select throws_ok($$select app_public.public_test_catalog_gateway_request(repeat('dc',32),'nearby-list',
+ '{"p_q":"Nearby Boundary","p_category":"issue-644-synth","p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)$$,
+ '22023','gateway_request_invalid','public-test gateway rejects Nearby before reader dispatch');
+reset role;
+grant release_automation to postgres;
+create temporary table issue_644_public_test_rate_check(no_rate_row boolean);
+grant insert on issue_644_public_test_rate_check to release_automation;
+set local role release_automation;
+insert into issue_644_public_test_rate_check
+select not exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('dc',32),'hex'));
+reset role;
+select ok((select no_rate_row from issue_644_public_test_rate_check),
+ 'rejected public-test Nearby request creates no rate row');
+revoke release_automation from postgres;
+
+select has_function('app_public','synthetic_catalog_list_nearby',
+ array['text','text','text','double precision','double precision','integer'],'Nearby reader retains exact six-argument signature');
+select ok((select pg_get_userbyid(p.proowner)='catalog_reader' and p.pronargs=6 and p.pronargdefaults=0
+ and p.prosecdef and p.provolatile='s' and 'search_path=""'=any(coalesce(p.proconfig,'{}'))
+ from pg_proc p where p.oid='app_public.synthetic_catalog_list_nearby(text,text,text,double precision,double precision,integer)'::regprocedure),
+ 'Nearby reader owner, required arguments and empty search_path remain fixed');
+select ok(has_function_privilege('synthetic_catalog_automation','app_public.synthetic_catalog_list_nearby(text,text,text,double precision,double precision,integer)','EXECUTE')
+ and not has_function_privilege('anon','app_public.synthetic_catalog_list_nearby(text,text,text,double precision,double precision,integer)','EXECUTE')
+ and not has_function_privilege('authenticated','app_public.synthetic_catalog_list_nearby(text,text,text,double precision,double precision,integer)','EXECUTE')
+ and not has_function_privilege('service_role','app_public.synthetic_catalog_list_nearby(text,text,text,double precision,double precision,integer)','EXECUTE')
+ and not has_function_privilege('public_catalog_gateway','app_public.synthetic_catalog_list_nearby(text,text,text,double precision,double precision,integer)','EXECUTE')
+ and not exists(select 1 from pg_proc p cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+  where p.oid='app_public.synthetic_catalog_list_nearby(text,text,text,double precision,double precision,integer)'::regprocedure
+   and a.privilege_type='EXECUTE' and a.grantee not in (p.proowner,'synthetic_catalog_automation'::regrole::oid)),
+ 'Nearby reader EXECUTE ACL is limited to its owner and synthetic automation');
+select is((select array_agg(attname::text order by attname::text) from pg_attribute
+ where attrelid='release_private.public_catalog_rate_windows'::regclass and attnum>0 and not attisdropped),
+ array['key_hash','operation','request_count','window_start']::text[],
+ 'rate table exposes exactly the four approved user columns');
 select * from finish();
 rollback;
