@@ -1422,3 +1422,121 @@ test('anonymous Details sign-in failure preserves store and private data before 
   await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
   expect(await privateState()).toEqual(before)
 })
+
+test('anonymous Details chooser rejects unavailable store and revoked session without writes', async ({
+  page,
+}) => {
+  const id = crypto.randomUUID()
+  const name = `Eligibility trip ${crypto.randomUUID()}`
+  const snapshot = async () =>
+    JSON.parse(
+      (
+        await service.sql(
+          `select jsonb_build_object('trip',(select to_jsonb(t) from trip_private.trips t where trip_id='${id}'),'stops',(select coalesce(jsonb_agg(to_jsonb(s) order by s.stop_id),'[]'::jsonb) from trip_private.trip_stops s where trip_id='${id}'),'saved',(select coalesce(jsonb_agg(to_jsonb(s) order by s.store_id),'[]'::jsonb) from shopper_private.saved_stores s where user_id='${owner}'));`,
+        )
+      ).trim(),
+    )
+  const publication = async () =>
+    (await service.sql(`select publication_state from app_public.stores where id='${A}';`)).trim()
+  const originalPublication = await publication()
+  expect(originalPublication).toBe('active')
+  await service.sql(
+    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','${name}','2030-10-12'); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator'); insert into trip_private.trip_stops(trip_id,kind,store_id,position,priority,planned_dwell_minutes) values ('${id}','store','${B}',0,'prefer',60);`,
+  )
+  let primaryFailure: unknown
+  let restorationFailure: unknown
+  try {
+    const target = `/trips/new?addStoreId=${A}`
+    await page.goto('/stores')
+    await page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first().click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
+    const action = page.getByRole('link', { name: 'Add to Trip', exact: true })
+    await expect(action).toHaveAttribute('href', target)
+    await action.click()
+    await expect(page).toHaveURL(
+      `${input.origin}/auth/sign-in?returnTo=${encodeURIComponent(target)}`,
+    )
+    const token = await submitLogin(page, 0)
+    const sessionId = uuid(
+      JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).session_id,
+    )
+    await expect(page).toHaveURL(`${input.origin}${target}`)
+    await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+    const add = page
+      .getByRole('list', { name: 'Existing trips', exact: true })
+      .getByRole('button', { name: `Add to ${name}`, exact: true })
+    await expect(add).toBeEnabled()
+    const before = await snapshot()
+    expect(before.trip.state).toBe('draft')
+    expect(before.stops.map((stop: { store_id: string }) => stop.store_id)).toEqual([B])
+    expect(
+      (
+        await service.sql(
+          `select count(*) from app_public.stores s join trip_private.trips t on t.area_id=s.area_id where t.trip_id='${id}' and s.id='${A}' and s.synthetic and s.audience='synthetic' and s.publication_state='active';`,
+        )
+      ).trim(),
+    ).toBe('1')
+    const sessionState = async () =>
+      (
+        await service.sql(
+          `select state from app_private.active_sessions where session_id='${sessionId}' and user_id='${owner}';`,
+        )
+      ).trim()
+    const denyAdd = async (message: string) => {
+      const response = page.waitForResponse((result) => {
+        const url = new URL(result.url())
+        return (
+          url.origin === new URL(input.endpoint).origin &&
+          url.pathname === '/rest/v1/rpc/add_trip_store_stop' &&
+          result.request().method() === 'POST'
+        )
+      })
+      await add.click()
+      const denied = await response
+      expect(denied.request().postDataJSON()).toEqual({ trip_id: id, store_id: A })
+      expect(denied.status()).toBe(400)
+      const error = await denied.json()
+      expect({ code: error.code, message: error.message }).toEqual({ code: 'P0001', message })
+      await expect(
+        page
+          .getByRole('alert')
+          .getByText("We couldn't update this trip. Please try again.", { exact: true }),
+      ).toBeVisible()
+      await expect(page).toHaveURL(`${input.origin}${target}`)
+      await expect(add).toBeEnabled()
+      const after = await snapshot()
+      expect(after).toEqual(before)
+      expect(after.trip.version).toBe(before.trip.version)
+    }
+    await service.sql(`update app_public.stores set publication_state='hidden' where id='${A}';`)
+    expect(await publication()).toBe('hidden')
+    expect(await sessionState()).toBe('active')
+    await denyAdd('store_stop_not_found')
+
+    await service.sql(`update app_public.stores set publication_state='active' where id='${A}';`)
+    expect(await publication()).toBe('active')
+    expect(await snapshot()).toEqual(before)
+    await service.sql(
+      `update app_private.active_sessions set state='revoked',revoked_at=now(),revocation_reason='test_add_denial' where session_id='${sessionId}' and user_id='${owner}' and state='active';`,
+    )
+    expect(await sessionState()).toBe('revoked')
+    expect(await publication()).toBe('active')
+    await denyAdd('authorization_lost')
+  } catch (error) {
+    primaryFailure = error
+  } finally {
+    try {
+      await service.sql(`update app_public.stores set publication_state='active' where id='${A}';`)
+      expect(await publication()).toBe(originalPublication)
+    } catch (cleanupFailure) {
+      restorationFailure = cleanupFailure
+    }
+  }
+  if (primaryFailure && restorationFailure)
+    throw new AggregateError(
+      [primaryFailure, restorationFailure],
+      'Denial proof failed and store restoration failed',
+    )
+  if (primaryFailure) throw primaryFailure
+  if (restorationFailure) throw restorationFailure
+})
