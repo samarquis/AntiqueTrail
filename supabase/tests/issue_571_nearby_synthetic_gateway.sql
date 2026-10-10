@@ -110,6 +110,177 @@ select ok((app_public.synthetic_catalog_gateway_request(repeat('d',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb)) is not null,
  'explicit null query/category/area dispatch');
+reset role;
+grant release_automation to postgres;
+select lives_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('ab',32),'hex'),'nearby-list',v_window,59);
+reset role;
+set local role public_catalog_gateway;
+perform app_public.synthetic_catalog_gateway_request(repeat('ab',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list','{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb);
+reset role;
+set local role release_automation;
+if not exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('ab',32),'hex') and operation='nearby-list' and window_start=v_window and request_count=60) then raise exception 'nearby-list expected count 60'; end if;
+reset role;
+end
+$block$;
+$test$,'nearby-list admits request 60 and persists count 60');
+reset role;
+select throws_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('bc',32),'hex'),'nearby-list',v_window,60);
+reset role;
+set local role public_catalog_gateway;
+perform app_public.synthetic_catalog_gateway_request(repeat('bc',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list','{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb);
+
+end
+$block$;
+$test$,'P0001','catalog_rate_limited','nearby-list request 61 is rate limited');
+reset role;
+select lives_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('cd',32),'hex'),'list',v_window,59);
+reset role;
+set local role public_catalog_gateway;
+perform app_public.synthetic_catalog_gateway_request(repeat('cd',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','list','{}'::jsonb);
+reset role;
+set local role release_automation;
+if not exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('cd',32),'hex') and operation='list' and window_start=v_window and request_count=60) then raise exception 'list expected count 60'; end if;
+reset role;
+end
+$block$;
+$test$,'list admits request 60 and persists count 60');
+reset role;
+select throws_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('de',32),'hex'),'list',v_window,60);
+reset role;
+set local role public_catalog_gateway;
+perform app_public.synthetic_catalog_gateway_request(repeat('de',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','list','{}'::jsonb);
+
+end
+$block$;
+$test$,'P0001','catalog_rate_limited','list request 61 is rate limited');
+reset role;
+select lives_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('ef',32),'hex'),'details',v_window,119);
+reset role;
+set local role public_catalog_gateway;
+perform app_public.synthetic_catalog_gateway_request(repeat('ef',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','details','{"p_slug":"nearby-644-7101"}'::jsonb);
+reset role;
+set local role release_automation;
+if not exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('ef',32),'hex') and operation='details' and window_start=v_window and request_count=120) then raise exception 'details expected count 120'; end if;
+reset role;
+end
+$block$;
+$test$,'details admits request 120 and persists count 120');
+reset role;
+select throws_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('fa',32),'hex'),'details',v_window,120);
+reset role;
+set local role public_catalog_gateway;
+perform app_public.synthetic_catalog_gateway_request(repeat('fa',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','details','{"p_slug":"nearby-644-7101"}'::jsonb);
+
+end
+$block$;
+$test$,'P0001','catalog_rate_limited','details request 121 is rate limited');
+reset role;
+select lives_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('12',32),'hex'),'nearby-list',v_window-interval '5 minutes',60);
+reset role;
+set local role public_catalog_gateway;
+perform app_public.synthetic_catalog_gateway_request(repeat('12',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list','{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb);
+reset role;
+set local role release_automation;
+if not exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('12',32),'hex') and operation='nearby-list' and window_start=v_window-interval '5 minutes' and request_count=60) or not exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('12',32),'hex') and operation='nearby-list' and window_start=v_window and request_count=1) then raise exception 'rollover row isolation failed'; end if;
+reset role;
+end
+$block$;
+$test$,'exhausted prior window does not exhaust current Nearby window');
+reset role;
+select lives_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300);
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('23',32),'hex'),'nearby-list',v_window,60),(decode(repeat('23',32),'hex'),'details',v_window,1);
+reset role;
+set local role public_catalog_gateway;
+perform app_public.synthetic_catalog_gateway_request(repeat('23',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','details','{"p_slug":"nearby-644-7101"}'::jsonb);
+reset role;
+set local role release_automation;
+if not exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('23',32),'hex') and operation='nearby-list' and window_start=v_window and request_count=60) or not exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('23',32),'hex') and operation='details' and window_start=v_window and request_count=2) then raise exception 'operation counters mixed'; end if;
+reset role;
+end
+$block$;
+$test$,'details budget stays separate from Nearby for one rate key');
+reset role;
+select lives_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300); v_message text; v_denied boolean:=false;
+begin
+set local role public_catalog_gateway;
+begin
+perform app_public.synthetic_catalog_gateway_request(repeat('34',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000011','nearby-list','{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb);
+exception when sqlstate '42501' then get stacked diagnostics v_message=message_text; if v_message<>'synthetic_catalog_forbidden' then raise exception 'unexpected denial: %',v_message; end if; v_denied:=true;
+end;
+reset role;
+if not v_denied then raise exception 'cross-session request was not denied'; end if;
+set local role release_automation;
+if exists(select 1 from release_private.public_catalog_rate_windows where key_hash=decode(repeat('34',32),'hex') and operation='nearby-list' and window_start=v_window) then raise exception 'denied request created rate row'; end if;
+reset role;
+end
+$block$;
+$test$,'cross-session denial creates no rate row');
+reset role;
+select lives_ok($test$
+do $block$
+declare v_window timestamptz := to_timestamp(floor(extract(epoch from statement_timestamp())/300)*300); v_message text; v_denied boolean:=false; v_count integer;
+begin
+set local role release_automation;
+insert into release_private.public_catalog_rate_windows values(decode(repeat('45',32),'hex'),'nearby-list',v_window,17);
+reset role;
+set local role public_catalog_gateway;
+begin
+perform app_public.synthetic_catalog_gateway_request(repeat('45',32),'99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000011','nearby-list','{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}'::jsonb);
+exception when sqlstate '42501' then get stacked diagnostics v_message=message_text; if v_message<>'synthetic_catalog_forbidden' then raise exception 'unexpected denial: %',v_message; end if; v_denied:=true;
+end;
+reset role;
+if not v_denied then raise exception 'cross-session request was not denied'; end if;
+set local role release_automation;
+select request_count into v_count from release_private.public_catalog_rate_windows where key_hash=decode(repeat('45',32),'hex') and operation='nearby-list' and window_start=v_window;
+if v_count is distinct from 17 then raise exception 'denied request changed rate count from 17'; end if;
+reset role;
+end
+$block$;
+$test$,'cross-session denial leaves existing rate count unchanged');
+reset role;
+revoke release_automation from postgres;
+set local role public_catalog_gateway;
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
