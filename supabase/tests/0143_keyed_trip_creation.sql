@@ -78,7 +78,9 @@ insert into auth.sessions(id,user_id,created_at,updated_at) values
  ('63400000-0000-4000-8000-000000000012','63400000-0000-4000-8000-000000000002',statement_timestamp(),statement_timestamp()),
  ('63400000-0000-4000-8000-000000000013','63400000-0000-4000-8000-000000000003',statement_timestamp(),statement_timestamp()),
  ('63400000-0000-4000-8000-000000000061','63400000-0000-4000-8000-000000000006',statement_timestamp(),statement_timestamp()),
- ('63400000-0000-4000-8000-000000000062','63400000-0000-4000-8000-000000000006',statement_timestamp(),statement_timestamp());
+ ('63400000-0000-4000-8000-000000000062','63400000-0000-4000-8000-000000000006',statement_timestamp(),statement_timestamp()),
+ ('63400000-0000-4000-8000-000000000063','63400000-0000-4000-8000-000000000006',statement_timestamp(),statement_timestamp()),
+ ('63400000-0000-4000-8000-000000000064','63400000-0000-4000-8000-000000000006',statement_timestamp(),statement_timestamp());
 set local role identity_service;
 update app_private.profiles set verified_email_snapshot=case user_id
   when '63400000-0000-4000-8000-000000000001' then 'keyed-a@issue634.invalid'
@@ -275,8 +277,27 @@ select extensions.dblink_exec('issue634_b','set lock_timeout = ''15s''');
 select extensions.dblink_exec('issue634_a',$remote$
   begin; set local role authenticated;
   set local request.method='POST'; set local request.path='rpc/register_current_session';
-  set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000001","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000016"}';
+  set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000006","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000063"}';
   do $$begin perform app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint); end$$;
+  commit;
+$remote$);
+select extensions.dblink_exec('issue634_b',$remote$
+  begin; set local role authenticated;
+  set local request.method='POST'; set local request.path='rpc/register_current_session';
+  set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000006","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000064"}';
+  do $$begin perform app_public.register_current_session((extract(epoch from statement_timestamp()+interval '1 hour')*1000)::bigint); end$$;
+  commit;
+$remote$);
+do $$begin raise notice 'issue634.phase.concurrent_sessions_registered'; end $$;
+select extensions.dblink_exec('issue634_a',$remote$
+  begin; set local role authenticated;
+  set local request.method='POST'; set local request.path='rpc/create_trip';
+  set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000006","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000063"}';
+$remote$);
+select extensions.dblink_exec('issue634_b',$remote$
+  begin; set local role authenticated;
+  set local request.method='POST'; set local request.path='rpc/create_trip';
+  set local request.jwt.claims='{"sub":"63400000-0000-4000-8000-000000000006","role":"authenticated","session_id":"63400000-0000-4000-8000-000000000064"}';
 $remote$);
 do $$begin raise notice 'issue634.phase.concurrent_a_ready'; end $$;
 select extensions.dblink_send_query('issue634_a',$query$
@@ -326,14 +347,14 @@ select extensions.dblink_disconnect('issue634_b');
 select is((current_setting('test.concurrent_a')::jsonb->>'id'),
   (current_setting('test.concurrent_b')::jsonb->>'id'),'concurrent requests return one trip');
 select is((select count(*)::integer from trip_private.trips
-  where owner_id='63400000-0000-4000-8000-000000000001' and name='Concurrent keyed create'),1,
+  where owner_id='63400000-0000-4000-8000-000000000006' and name='Concurrent keyed create'),1,
   'concurrent requests create one trip');
 select is((select count(*)::integer from trip_private.trip_participants p join trip_private.trips t using(trip_id)
-  where t.owner_id='63400000-0000-4000-8000-000000000001'
+  where t.owner_id='63400000-0000-4000-8000-000000000006'
     and t.name='Concurrent keyed create' and p.user_id=t.owner_id and p.participant_role='creator'),1,
   'concurrent requests create one creator participant');
 select is((select count(*)::integer from trip_private.trip_create_receipts
-  where actor_user_id='63400000-0000-4000-8000-000000000001'
+  where actor_user_id='63400000-0000-4000-8000-000000000006'
     and idempotency_key='63400000-0000-4000-8000-000000000103'),1,
   'concurrent requests create one receipt');
 do $$begin raise notice 'issue634.phase.concurrent_race_complete'; end $$;

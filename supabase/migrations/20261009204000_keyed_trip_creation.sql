@@ -63,7 +63,87 @@ end;
 $$;
 
 grant create on schema app_public to identity_service;
+do $$
+declare
+  v_actor_owner boolean;
+  v_actor_execute boolean;
+  v_identity_owner boolean;
+  v_anon_execute boolean;
+  v_authenticated_execute boolean;
+  v_service_execute boolean;
+  v_public_execute boolean;
+begin
+  select p.proowner=(current_user::regrole)::oid,
+    has_function_privilege(current_user,p.oid,'EXECUTE'),
+    p.proowner='identity_service'::regrole,
+    has_function_privilege('anon',p.oid,'EXECUTE'),
+    has_function_privilege('authenticated',p.oid,'EXECUTE'),
+    has_function_privilege('service_role',p.oid,'EXECUTE'),
+    exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+      where a.grantee=0 and a.privilege_type='EXECUTE')
+  into v_actor_owner,v_actor_execute,v_identity_owner,v_anon_execute,
+    v_authenticated_execute,v_service_execute,v_public_execute
+  from pg_proc p where p.oid='app_public.create_trip(text,text,uuid)'::regprocedure;
+  raise notice 'issue634.acl.before_owner actor_owner=% actor_execute=% identity_owner=% anon_execute=% authenticated_execute=% service_execute=% public_execute=%',
+    v_actor_owner,v_actor_execute,v_identity_owner,v_anon_execute,
+    v_authenticated_execute,v_service_execute,v_public_execute;
+end $$;
 alter function app_public.create_trip(text,text,uuid) owner to identity_service;
+do $$
+declare
+  v_actor_owner boolean;
+  v_actor_execute boolean;
+  v_identity_owner boolean;
+  v_anon_execute boolean;
+  v_authenticated_execute boolean;
+  v_service_execute boolean;
+  v_public_execute boolean;
+begin
+  select p.proowner=(current_user::regrole)::oid,
+    has_function_privilege(current_user,p.oid,'EXECUTE'),
+    p.proowner='identity_service'::regrole,
+    has_function_privilege('anon',p.oid,'EXECUTE'),
+    has_function_privilege('authenticated',p.oid,'EXECUTE'),
+    has_function_privilege('service_role',p.oid,'EXECUTE'),
+    exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+      where a.grantee=0 and a.privilege_type='EXECUTE')
+  into v_actor_owner,v_actor_execute,v_identity_owner,v_anon_execute,
+    v_authenticated_execute,v_service_execute,v_public_execute
+  from pg_proc p where p.oid='app_public.create_trip(text,text,uuid)'::regprocedure;
+  raise notice 'issue634.acl.after_owner actor_owner=% actor_execute=% identity_owner=% anon_execute=% authenticated_execute=% service_execute=% public_execute=%',
+    v_actor_owner,v_actor_execute,v_identity_owner,v_anon_execute,
+    v_authenticated_execute,v_service_execute,v_public_execute;
+end $$;
 revoke create on schema app_public from identity_service;
 revoke all on function app_public.create_trip(text,text,uuid) from public,anon,authenticated,service_role;
 grant execute on function app_public.create_trip(text,text,uuid) to authenticated;
+do $$
+declare
+  v_actor_owner boolean;
+  v_actor_execute boolean;
+  v_identity_owner boolean;
+  v_anon_execute boolean;
+  v_authenticated_execute boolean;
+  v_service_execute boolean;
+  v_public_execute boolean;
+begin
+  select p.proowner=(current_user::regrole)::oid,
+    has_function_privilege(current_user,p.oid,'EXECUTE'),
+    p.proowner='identity_service'::regrole,
+    has_function_privilege('anon',p.oid,'EXECUTE'),
+    has_function_privilege('authenticated',p.oid,'EXECUTE'),
+    has_function_privilege('service_role',p.oid,'EXECUTE'),
+    exists(select 1 from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
+      where a.grantee=0 and a.privilege_type='EXECUTE')
+  into v_actor_owner,v_actor_execute,v_identity_owner,v_anon_execute,
+    v_authenticated_execute,v_service_execute,v_public_execute
+  from pg_proc p where p.oid='app_public.create_trip(text,text,uuid)'::regprocedure;
+  raise notice 'issue634.acl.after_revoke_grant actor_owner=% actor_execute=% identity_owner=% anon_execute=% authenticated_execute=% service_execute=% public_execute=%',
+    v_actor_owner,v_actor_execute,v_identity_owner,v_anon_execute,
+    v_authenticated_execute,v_service_execute,v_public_execute;
+  if not (v_identity_owner and v_authenticated_execute and not v_anon_execute
+      and not v_service_execute and not v_public_execute)
+      or has_schema_privilege('identity_service','app_public','CREATE') then
+    raise exception 'keyed create function ACL postcondition failed';
+  end if;
+end $$;
