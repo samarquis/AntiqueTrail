@@ -21,6 +21,7 @@ const partnerRemoval = process.argv.includes('--partner-removal')
 const accountSettings = process.argv.includes('--account-settings')
 const keyedTripCreate = process.argv.includes('--keyed-trip-create')
 const savedRowTripEntry = process.argv.includes('--saved-row-trip-entry')
+const detailsTripEntry = process.argv.includes('--details-trip-entry')
 const report = {
   scope:
     [
@@ -30,6 +31,7 @@ const report = {
       accountSettings,
       keyedTripCreate,
       savedRowTripEntry,
+      detailsTripEntry,
     ].filter(Boolean).length > 1
       ? 'invalid'
       : sessionSignout
@@ -44,7 +46,9 @@ const report = {
                 ? 'keyed-trip-create'
                 : savedRowTripEntry
                   ? 'saved-row-trip-entry'
-                  : 'connected-shopper',
+                  : detailsTripEntry
+                    ? 'details-trip-entry'
+                    : 'connected-shopper',
   status: 'unavailable',
   stage: 'preflight',
   failedAt: undefined,
@@ -72,6 +76,7 @@ try {
       accountSettings,
       keyedTripCreate,
       savedRowTripEntry,
+      detailsTripEntry,
     ].filter(Boolean).length > 1
   )
     throw new Error('Choose one configured acceptance scope')
@@ -109,6 +114,14 @@ try {
     fixtureHash.update(relative).update(bytes)
   }
   await service.sql(fixtureSql)
+  if (detailsTripEntry || report.scope === 'connected-shopper') {
+    const detailsFixture = fs.readFileSync(
+      path.join(ROOT, 'scripts/configured-details-trip-fixtures.sql'),
+      'utf8',
+    )
+    fixtureHash.update(detailsFixture)
+    await service.sql(detailsFixture)
+  }
   local.fixtureIdentity = fixtureHash.digest('hex')
   for (const key of [
     'sourceSha',
@@ -213,7 +226,12 @@ try {
                         '--grep',
                         'visible Saved-row chooser cancels, retries, and reads back one dated stop$',
                       ]
-                    : []),
+                    : detailsTripEntry
+                      ? [
+                          '--grep',
+                          'anonymous Details entry cancels sign-in, retains store, and retries one dated stop$',
+                        ]
+                      : []),
       ],
       { env, timeout: 900_000, signal: controller.signal },
     )
@@ -233,9 +251,14 @@ try {
       fs.readFileSync(resultPath, 'utf8'),
       sessionSignout
         ? 4
-        : mediaOnly || partnerRemoval || accountSettings || keyedTripCreate || savedRowTripEntry
+        : mediaOnly ||
+            partnerRemoval ||
+            accountSettings ||
+            keyedTripCreate ||
+            savedRowTripEntry ||
+            detailsTripEntry
           ? 2
-          : 26,
+          : 28,
       keyedTripCreate
         ? [
             { name: 'keyed trip create replays after committed response loss', project: 'desktop' },
@@ -246,7 +269,12 @@ try {
               name: 'visible Saved-row chooser cancels, retries, and reads back one dated stop',
               project,
             }))
-          : [],
+          : detailsTripEntry
+            ? ['desktop', 'phone'].map((project) => ({
+                name: 'anonymous Details entry cancels sign-in, retains store, and retries one dated stop',
+                project,
+              }))
+            : [],
     )
     report.stats = results.stats
     report.checks = results.checks
