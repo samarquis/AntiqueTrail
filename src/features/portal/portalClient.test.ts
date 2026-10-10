@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   GENERIC_PORTAL_ERROR,
   PortalMediaCapError,
+  PortalUpdateConflictError,
   createPortalClient,
   createPortalMediaHttpTransport,
   decodePortalMediaUploadHistory,
@@ -108,6 +109,187 @@ describe('production portal client', () => {
     })
     await expect(failed.getHome()).rejects.toThrow(GENERIC_PORTAL_ERROR)
     await expect(failed.removeOfficialLink('facebook')).rejects.toThrow(GENERIC_PORTAL_ERROR)
+  })
+
+  it('maps one versioned edit RPC and decodes the complete saved update', async () => {
+    const command = {
+      id: 'update-1',
+      update: {
+        type: 'sale' as const,
+        headline: 'Weekend finds',
+        details: 'Fresh arrivals this weekend.',
+        vendorLabel: 'Oak Antiques',
+        sourceUrl: 'https://oak.example.invalid/sale',
+        endDate: '2026-10-18',
+        imageRequested: true,
+      },
+      expectedVersion: 1,
+      idempotencyKey: 'issue645-edit-1',
+    }
+    const saved = {
+      ...command.update,
+      id: command.id,
+      state: 'live' as const,
+      publishedAt: '2026-10-10T12:00:00Z',
+      version: 2,
+    }
+    const rpc = vi.fn(async () => ({ data: { state: 'saved', update: saved }, error: null }))
+    const client = createPortalClient({ rpc })
+
+    await expect(client.editUpdate(command)).resolves.toEqual(saved)
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('portal_edit_update', {
+      p_update_id: command.id,
+      p_update: command.update,
+      p_expected_version: command.expectedVersion,
+      p_idempotency_key: command.idempotencyKey,
+    })
+  })
+
+  it('keeps conflicts typed and accepts only positive safe latest versions', async () => {
+    const command = {
+      id: 'update-1',
+      update: { type: 'announcement' as const, headline: 'Edit', details: 'Text' },
+      expectedVersion: 3,
+      idempotencyKey: 'issue645-edit-stale',
+    }
+    const currentRpc = vi.fn(async () => ({
+      data: { state: 'conflict', latest: { version: 4 } },
+      error: null,
+    }))
+    const current = createPortalClient({ rpc: currentRpc })
+    const conflict = await current.editUpdate(command).catch((error: unknown) => error)
+    expect(conflict).toBeInstanceOf(PortalUpdateConflictError)
+    expect(conflict).toMatchObject({ latestVersion: 4 })
+    expect(currentRpc).toHaveBeenCalledTimes(1)
+
+    const bare = createPortalClient({
+      rpc: vi.fn(async () => ({ data: { state: 'conflict' }, error: null })),
+    })
+    await expect(bare.editUpdate(command)).rejects.toMatchObject({
+      name: 'PortalUpdateConflictError',
+      latestVersion: undefined,
+    })
+
+    const invalidLatest: unknown[] = [
+      undefined,
+      null,
+      [],
+      {},
+      { version: '4' },
+      { version: 0 },
+      { version: -1 },
+      { version: 1.5 },
+      { version: Number.MAX_SAFE_INTEGER + 1 },
+    ]
+    for (const latest of invalidLatest) {
+      const rpc = vi.fn(async () => ({ data: { state: 'conflict', latest }, error: null }))
+      const client = createPortalClient({ rpc })
+      await expect(client.editUpdate(command)).rejects.toMatchObject({
+        name: 'PortalUpdateConflictError',
+        latestVersion: undefined,
+      })
+      expect(rpc).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it('rejects malformed saved edit envelopes and updates with the generic error', async () => {
+    const validUpdate = {
+      id: 'update-1',
+      headline: 'Saved',
+      details: 'Saved details',
+      version: 2,
+    }
+    const malformedEnvelopes: unknown[] = [
+      null,
+      [],
+      1,
+      'saved',
+      {},
+      { state: 'unknown', update: validUpdate },
+      { state: 'saved' },
+      { state: 'saved', update: null },
+      { state: 'saved', update: [] },
+    ]
+    for (const data of malformedEnvelopes) {
+      const client = createPortalClient({ rpc: vi.fn(async () => ({ data, error: null })) })
+      await expect(
+        client.editUpdate({
+          id: 'update-1',
+          update: { type: 'announcement', headline: 'Edit', details: 'Text' },
+          expectedVersion: 1,
+          idempotencyKey: 'issue645-malformed',
+        }),
+      ).rejects.toMatchObject({ message: GENERIC_PORTAL_ERROR })
+    }
+
+    const malformedUpdates: unknown[] = [
+      { ...validUpdate, id: undefined },
+      { ...validUpdate, id: 1 },
+      { ...validUpdate, headline: undefined },
+      { ...validUpdate, headline: null },
+      { ...validUpdate, details: undefined },
+      { ...validUpdate, details: 1 },
+      { ...validUpdate, version: undefined },
+      { ...validUpdate, version: '2' },
+      { ...validUpdate, version: 0 },
+      { ...validUpdate, version: -1 },
+      { ...validUpdate, version: 1.5 },
+      { ...validUpdate, version: Number.MAX_SAFE_INTEGER + 1 },
+    ]
+    for (const update of malformedUpdates) {
+      const client = createPortalClient({
+        rpc: vi.fn(async () => ({ data: { state: 'saved', update }, error: null })),
+      })
+      await expect(
+        client.editUpdate({
+          id: 'update-1',
+          update: { type: 'announcement', headline: 'Edit', details: 'Text' },
+          expectedVersion: 1,
+          idempotencyKey: 'issue645-malformed-update',
+        }),
+      ).rejects.toMatchObject({ message: GENERIC_PORTAL_ERROR })
+    }
+  })
+
+  it('keeps edit transport failures generic and never retries', async () => {
+    const command = {
+      id: 'update-1',
+      update: { type: 'announcement' as const, headline: 'Edit', details: 'Text' },
+      expectedVersion: 1,
+      idempotencyKey: 'issue645-transport',
+    }
+    const returnedError = vi.fn(async () => ({
+      data: {
+        state: 'saved',
+        update: { id: 'update-1', headline: 'Edit', details: 'Text', version: 2 },
+      },
+      error: new Error('private database detail'),
+    }))
+    await expect(
+      createPortalClient({ rpc: returnedError }).editUpdate(command),
+    ).rejects.toMatchObject({ message: GENERIC_PORTAL_ERROR })
+    expect(returnedError).toHaveBeenCalledTimes(1)
+
+    const rejected = vi.fn(async () => {
+      throw new Error('private transport detail')
+    })
+    await expect(createPortalClient({ rpc: rejected }).editUpdate(command)).rejects.toMatchObject({
+      message: GENERIC_PORTAL_ERROR,
+    })
+    expect(rejected).toHaveBeenCalledTimes(1)
+
+    for (const data of [null, undefined]) {
+      const rpc = vi.fn(async () => ({ data, error: null }))
+      await expect(createPortalClient({ rpc }).editUpdate(command)).rejects.toMatchObject({
+        message: GENERIC_PORTAL_ERROR,
+      })
+      expect(rpc).toHaveBeenCalledTimes(1)
+    }
+
+    await expect(unavailablePortalClient.editUpdate(command)).rejects.toMatchObject({
+      message: GENERIC_PORTAL_ERROR,
+    })
   })
 
   it('preserves the scoped managed-field hydration payload from Portal home', async () => {

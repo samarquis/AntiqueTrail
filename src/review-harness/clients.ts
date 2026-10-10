@@ -2100,6 +2100,7 @@ function portalClient(
   let updates: StoreUpdate[] = [
     {
       id: 'update-1',
+      version: 1,
       type: 'new_finds',
       headline: 'Fresh walnut furniture',
       details: 'A synthetic shipment for local review.',
@@ -2271,6 +2272,7 @@ function portalClient(
         const created: StoreUpdate = {
           ...draft,
           id: 'update-' + (updates.length + 1),
+          version: 1,
           state: 'live',
           publishedAt: FIXED_NOW,
         }

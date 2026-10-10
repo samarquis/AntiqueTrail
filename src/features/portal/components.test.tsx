@@ -107,13 +107,22 @@ function client(overrides: Partial<PortalClient> = {}): PortalClient {
       state: 'awaiting_review' as const,
     })),
     listUpdates: vi.fn(async () => []),
-    createUpdate: vi.fn(async (draft) => ({ ...draft, id: 'update-1', state: 'live' as const })),
+    createUpdate: vi.fn(async (draft) => ({
+      ...draft,
+      id: 'update-1',
+      state: 'live' as const,
+      version: 1,
+    })),
+    editUpdate: vi.fn(async () => {
+      throw new Error(GENERIC_PORTAL_ERROR)
+    }),
     archiveUpdate: vi.fn(async (id) => ({
       id,
       type: 'new_finds' as const,
       headline: 'Finds',
       details: 'Details',
       state: 'archived' as const,
+      version: 1,
     })),
     restoreUpdate: vi.fn(async (id) => ({
       id,
@@ -121,6 +130,7 @@ function client(overrides: Partial<PortalClient> = {}): PortalClient {
       headline: 'Finds',
       details: 'Details',
       state: 'live' as const,
+      version: 1,
     })),
     listOfficialLinks: vi.fn(async () => []),
     saveOfficialLink: vi.fn(async (link) => link),
