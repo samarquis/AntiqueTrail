@@ -138,11 +138,11 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c
  'P0001','gateway_request_invalid','forged actor argument is rejected');
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
- '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":180,"p_device_radius_miles":5}')$$,
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":181,"p_device_radius_miles":5}')$$,
  'P0001','invalid_nearby_input','longitude upper bound is denied');
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
- '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":-180,"p_device_radius_miles":5}')$$,
+ '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":-181,"p_device_radius_miles":5}')$$,
  'P0001','invalid_nearby_input','longitude lower bound is denied');
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
@@ -200,6 +200,7 @@ set local role identity_service;
 update app_private.active_sessions set access_token_expires_at=statement_timestamp()+interval '1 hour'
 where user_id='99000000-0000-4000-8000-000000000002' and session_id='99000000-0000-4000-8000-000000000012';
 reset role;
+set local role public_catalog_gateway;
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('a',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','map','{}')$$,
  '42501','synthetic_catalog_map_disabled','synthetic map remains disabled');
@@ -302,6 +303,7 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('c
  '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
  '42501','synthetic_catalog_forbidden','inactive profile is denied');
 reset role;
+grant delete on app_private.role_grants to identity_service;
 set local role identity_service;
 update app_private.profiles set status='active',deletion_due_at=null where user_id='99000000-0000-4000-8000-000000000002';
 delete from app_private.role_grants
@@ -330,6 +332,8 @@ update app_private.role_grants set state='active',revoked_at=null
 where subject_user_id='99000000-0000-4000-8000-000000000002' and role='shopper' and store_id is null;
 delete from app_private.role_grants
 where subject_user_id='99000000-0000-4000-8000-000000000002' and role='shopper' and store_id is null;
+select ok(app_private.privileged_anchor_is_current(),
+ 'current local audit anchor permits isolated privileged-role fixtures');
 insert into app_private.role_grants(subject_user_id,role,state)
 values ('99000000-0000-4000-8000-000000000002','administrator','active');
 reset role;
@@ -357,6 +361,7 @@ where subject_user_id='99000000-0000-4000-8000-000000000002' and role='represent
 insert into app_private.role_grants(subject_user_id,role,state)
 values ('99000000-0000-4000-8000-000000000002','shopper','active');
 reset role;
+revoke delete on app_private.role_grants from identity_service;
 
 insert into internal_review_private.identities(user_id,alias,fixture_namespace,controlled_address)
 values ('99000000-0000-4000-8000-000000000001','shopper-a','issue-644','nearby-a@review.invalid');
