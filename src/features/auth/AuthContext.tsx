@@ -27,6 +27,7 @@ import type { UserSettings } from '../account/settings'
 interface AuthContextValue {
   session: AuthSession | null
   lifecycleReady: boolean
+  isCurrentAccount(): boolean
   signIn(session: AuthSession): Promise<void>
   signOut(): Promise<void>
   updateDisplayName(displayName: string | null): void
@@ -281,10 +282,22 @@ export function AuthProvider({
   }, [lifecycle, lifecycleHydrationTimeoutMs, loseSession, replaceSession, session])
 
   const renderedAccountRevision = accountRevision.current
+  const isCurrentAccount = useCallback(() => {
+    const current = resolvedStore.getSession()
+    return Boolean(
+      session?.userId &&
+        current?.userId === session.userId &&
+        accountRevision.current === renderedAccountRevision &&
+        !signingOutSession.current &&
+        current.expiresAt > Date.now() &&
+        current.accountState !== 'deletion_scheduled',
+    )
+  }, [renderedAccountRevision, resolvedStore, session?.userId])
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
       lifecycleReady,
+      isCurrentAccount,
       async signIn(next) {
         if (signingOutSession.current) return
         const generation = signOutGeneration.current
@@ -400,6 +413,7 @@ export function AuthProvider({
       session,
       lifecycle,
       lifecycleReady,
+      isCurrentAccount,
       renderedAccountRevision,
     ],
   )

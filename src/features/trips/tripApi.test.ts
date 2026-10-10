@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest'
 import { GENERIC_TRIP_ERROR } from './tripClient'
 import { createTripApi, type TripApiCommand, type TripTransport } from './tripApi'
-import type { OfflineQueueSnapshot, Trip, TripCollaboration, TripPrivateHours } from './types'
+import type {
+  OfflineQueueSnapshot,
+  Trip,
+  TripClient,
+  TripCollaboration,
+  TripPrivateHours,
+} from './types'
 
 const trip: Trip = {
   id: 'trip-1',
@@ -250,17 +256,40 @@ describe('implicit-actor TripClient transport', () => {
     expect(wire.invoke).not.toHaveBeenCalled()
   })
 
-  it('normalizes bounded create input and sends no caller-supplied actor identity', async () => {
+  it('normalizes bounded create input and sends the supplied idempotency key only', async () => {
     const wire = transport(trip)
     const api = createTripApi(wire)
-    await expect(api.create({ name: '  Antique\nDay ', localDate: '2026-08-10' })).resolves.toEqual(
-      trip,
-    )
+    await expect(
+      api.create({
+        name: '  Antique\nDay ',
+        localDate: '2026-08-10',
+        idempotencyKey: '56500000-0000-4000-8000-000000000001',
+      }),
+    ).resolves.toEqual(trip)
     expect(wire.invoke).toHaveBeenCalledWith('create_trip', {
       name: 'Antique Day',
       local_date: '2026-08-10',
+      idempotency_key: '56500000-0000-4000-8000-000000000001',
     })
     expect(JSON.stringify(wire.invoke.mock.calls[0][1])).not.toMatch(/actor|owner|current_user/i)
+  })
+
+  it.each([
+    ['malformed', 'not-a-uuid'],
+    ['missing', undefined],
+    ['UUID array', ['56500000-0000-4000-8000-000000000001']],
+    ['UUID-coercible object', { toString: () => '56500000-0000-4000-8000-000000000001' }],
+    ['null', null],
+    ['number', 565],
+  ])('rejects a %s create key before transport', async (_label, idempotencyKey) => {
+    const wire = transport(trip)
+    const input = {
+      name: 'Antique Day',
+      localDate: '2026-08-10',
+      ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+    } as unknown as Parameters<TripClient['create']>[0]
+    await expect(createTripApi(wire).create(input)).rejects.toThrow(GENERIC_TRIP_ERROR)
+    expect(wire.invoke).not.toHaveBeenCalled()
   })
 
   it('clones completed history through one authoritative command', async () => {
