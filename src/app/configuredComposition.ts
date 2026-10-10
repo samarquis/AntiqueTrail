@@ -66,6 +66,7 @@ import {
 } from '../features/auth'
 import { createRG01Client } from '../features/rg01/rg01Client'
 import { createRG01HttpTransport } from '../features/rg01/rg01HttpTransport'
+import { isCatalogOnlyPublicTest } from '../features/auth/publicTestMode'
 
 export interface ConfiguredComposition {
   clients: AppClients
@@ -74,6 +75,28 @@ export interface ConfiguredComposition {
 
 function configuredValue(value: string | undefined): string | null {
   return value && !value.startsWith('replace-with-') ? value : null
+}
+
+function isLiteralLoopbackHttpUrl(value: string | null): boolean {
+  const match = /^http:\/\/127\.0\.0\.1:([1-9]\d{0,4})\/?$/.exec(value ?? '')
+  if (!match) return false
+  return Number(match[1]) <= 65_535
+}
+
+export function isConfiguredLocalShopperReview(input: {
+  supabaseUrl: string | null
+  anonKey: string | null
+  browserOrigin: string | null
+  reviewHarness: string | undefined
+  catalogOnlyPublicTest: boolean
+}): boolean {
+  return (
+    input.reviewHarness === 'false' &&
+    !input.catalogOnlyPublicTest &&
+    Boolean(input.anonKey?.trim()) &&
+    isLiteralLoopbackHttpUrl(input.supabaseUrl) &&
+    isLiteralLoopbackHttpUrl(input.browserOrigin)
+  )
 }
 
 function role(value: unknown): AccountRole {
@@ -1044,6 +1067,15 @@ export async function configuredComposition(
       authProvider,
       sessionRegistry,
       tripOffline: offline.runtime,
+      ...(isConfiguredLocalShopperReview({
+        supabaseUrl: url,
+        anonKey,
+        browserOrigin: typeof window === 'undefined' ? null : window.location.origin,
+        reviewHarness: import.meta.env.VITE_REVIEW_HARNESS,
+        catalogOnlyPublicTest: isCatalogOnlyPublicTest(),
+      })
+        ? { configuredLocalShopperReview: true as const }
+        : {}),
       ...(commercialResearch ? { commercialResearch } : {}),
     },
   }
