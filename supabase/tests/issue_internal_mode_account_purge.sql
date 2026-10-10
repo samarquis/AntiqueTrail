@@ -25,7 +25,8 @@ insert into trip_private.trip_participants(trip_id,user_id,participant_role)
 values('64800000-0000-4000-8100-000000000022','64800000-0000-4000-8000-000000000001','partner');
 insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version)
 select trip_id,owner_id,decode(repeat('ab',32),'hex'),1 from trip_private.trips
-where trip_id::text like '64800000-0000-4000-8100-%';
+where trip_id::text like '64800000-0000-4000-8100-%'
+  and trip_id<>'64800000-0000-4000-8100-000000000022';
 insert into trip_private.trip_device_bindings(trip_id,user_id,device_hash,session_security_version)
 values('64800000-0000-4000-8100-000000000022','64800000-0000-4000-8000-000000000001',decode(repeat('cd',32),'hex'),1);
 update trip_private.trips set navigator_user_id='64800000-0000-4000-8000-000000000001',navigator_device_hash=decode(repeat('cd',32),'hex')
@@ -50,6 +51,14 @@ set constraints all immediate;
 set constraints all deferred;
 
 select ok(app_public.request_user_id() is null and not internal_review_private.is_internal(null),'ordinary positive begins with unbound NULL context');
+
+-- Observe unrelated rows before even the ordinary-mode destructive call.
+create temporary table sibling_private_before as select
+ (select jsonb_agg(to_jsonb(s) order by store_id) from shopper_private.saved_stores s where user_id='64800000-0000-4000-8000-000000000002') as saved,
+ (select jsonb_agg(to_jsonb(m) order by store_id) from shopper_private.private_store_memories m where user_id='64800000-0000-4000-8000-000000000002') as memories,
+ (select jsonb_agg(to_jsonb(d) order by undo_token) from shopper_private.private_memory_deletions d where user_id='64800000-0000-4000-8000-000000000002') as deletions,
+ (select jsonb_agg(to_jsonb(b) order by binding_id) from trip_private.trip_device_bindings b where trip_id='64800000-0000-4000-8100-000000000021') as devices;
+select ok((select jsonb_array_length(saved)=1 and jsonb_array_length(memories)=1 and jsonb_array_length(deletions)=1 and jsonb_array_length(devices)=1 from sibling_private_before),'all unrelated shopper/device baselines are positively visible');
 
 -- Claim both ordinary and internal-target requests through the actual worker role.
 set local role account_lifecycle_service;
@@ -245,5 +254,9 @@ reset role;
 select is((select count(*)::integer from trip_private.trips where name='Denied fixture'),0,'denied routes write no fixture trips');
 select set_config('request.jwt.claims','{}',true);
 set constraints all immediate;
+select is((select jsonb_agg(to_jsonb(s) order by store_id) from shopper_private.saved_stores s where user_id='64800000-0000-4000-8000-000000000002'),(select saved from sibling_private_before),'sibling saved-store rows exactly preserved');
+select is((select jsonb_agg(to_jsonb(m) order by store_id) from shopper_private.private_store_memories m where user_id='64800000-0000-4000-8000-000000000002'),(select memories from sibling_private_before),'sibling memory rows exactly preserved');
+select is((select jsonb_agg(to_jsonb(d) order by undo_token) from shopper_private.private_memory_deletions d where user_id='64800000-0000-4000-8000-000000000002'),(select deletions from sibling_private_before),'sibling pending-deletion rows exactly preserved');
+select is((select jsonb_agg(to_jsonb(b) order by binding_id) from trip_private.trip_device_bindings b where trip_id='64800000-0000-4000-8100-000000000021'),(select devices from sibling_private_before),'unaffected sibling device binding exactly preserved');
 select * from finish();
 rollback;
