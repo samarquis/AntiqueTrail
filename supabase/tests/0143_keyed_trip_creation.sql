@@ -114,6 +114,8 @@ select ok(has_function_privilege('authenticated','app_public.create_trip(text,te
   'keyed overload is executable by authenticated');
 select ok(not has_function_privilege('anon','app_public.create_trip(text,text,uuid)','EXECUTE'),
   'anon cannot execute the keyed overload');
+select ok(not has_function_privilege('service_role','app_public.create_trip(text,text,uuid)','EXECUTE'),
+  'service_role cannot execute the keyed overload');
 select ok(not exists(select 1 from pg_proc p cross join lateral
     aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
     where p.oid='app_public.create_trip(text,text,uuid)'::regprocedure
@@ -124,6 +126,16 @@ select ok((select proowner='identity_service'::regrole from pg_proc
   'identity service owns the keyed overload');
 select ok(not has_schema_privilege('identity_service','app_public','CREATE'),
   'temporary function-owner schema privilege is revoked');
+set local role anon;
+select throws_ok($$select app_public.create_trip('Denied anon execution','2030-10-12',
+  '63400000-0000-4000-8000-000000000191')$$,'42501','permission denied for function create_trip',
+  'anon is denied real execution of the keyed overload');
+reset role;
+set local role service_role;
+select throws_ok($$select app_public.create_trip('Denied service execution','2030-10-12',
+  '63400000-0000-4000-8000-000000000192')$$,'42501','permission denied for function create_trip',
+  'service_role is denied real execution of the keyed overload');
+reset role;
 select ok((select relrowsecurity and relforcerowsecurity from pg_class
   where oid='trip_private.trip_create_receipts'::regclass),'receipt table forces RLS');
 select ok(exists(select 1 from pg_constraint where conrelid='trip_private.trip_create_receipts'::regclass

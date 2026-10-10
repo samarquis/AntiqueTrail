@@ -115,8 +115,10 @@ begin
     v_authenticated_execute,v_service_execute,v_public_execute;
 end $$;
 revoke create on schema app_public from identity_service;
+set role identity_service;
 revoke all on function app_public.create_trip(text,text,uuid) from public,anon,authenticated,service_role;
 grant execute on function app_public.create_trip(text,text,uuid) to authenticated;
+reset role;
 do $$
 declare
   v_actor_owner boolean;
