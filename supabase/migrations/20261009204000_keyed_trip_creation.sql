@@ -144,6 +144,11 @@ begin
   if not (v_identity_owner and v_authenticated_execute and not v_anon_execute
       and not v_service_execute and not v_public_execute)
       or has_schema_privilege('identity_service','app_public','CREATE') then
-    raise exception 'keyed create function ACL postcondition failed';
+    raise exception using
+      message='keyed create function ACL postcondition failed',
+      detail=format('identity_owner=%L authenticated_execute=%L anon_execute=%L service_execute=%L public_execute=%L identity_schema_create=%L',
+        v_identity_owner,v_authenticated_execute,v_anon_execute,v_service_execute,
+        v_public_execute,has_schema_privilege('identity_service','app_public','CREATE')),
+      errcode='P0001';
   end if;
 end $$;
