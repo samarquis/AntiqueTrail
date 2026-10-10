@@ -257,9 +257,9 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
     })
     .first()
   await expect(gallery).toBeVisible()
-  expect(
-    await gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0),
-  ).toBe(true)
+  await expect
+    .poll(() => gallery.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0))
+    .toBe(true)
   const enlarge = page.getByRole('button', { name: /Enlarge image:/ })
   await enlarge.click()
   await expect(page.getByRole('dialog')).toBeVisible()
