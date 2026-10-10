@@ -22,6 +22,12 @@ type OwnerApprovalEvidence = {
   approvalRpc: OwnerApprovalRpcOutcome | null
   caseReadRpc: OwnerApprovalRpcOutcome | null
 }
+type OwnerDenialCaseRpc =
+  | { case: 'invited_applicant_list'; rpc: 'owner_list_stores' }
+  | { case: 'owner_a_select_store_b'; rpc: 'owner_select_store' }
+  | { case: 'owner_a_read_store_b'; rpc: 'portal_get_home' }
+  | { case: 'cancelled_owner_list'; rpc: 'owner_list_stores' }
+  | { case: 'shopper_owner_list'; rpc: 'owner_list_stores' }
 type OwnerListingPhase =
   | 'first'
   | 'full'
@@ -374,8 +380,17 @@ async function fillPartnerDraft(page: Page, name: string, description: string) {
   await page.getByLabel('Description', { exact: true }).fill(description)
 }
 
-async function expectDenied(result: { status: number }, description: string) {
-  if (result.status !== 403) throw new Error(`${description} did not return the expected denial`)
+async function expectDenied(
+  result: { status: number },
+  description: string,
+  ownerDenial?: OwnerDenialCaseRpc,
+) {
+  if (result.status !== 403) {
+    const error = new Error(`${description} did not return the expected denial`)
+    if (ownerDenial)
+      Object.assign(error, { ownerDenial: { ...ownerDenial, httpStatus: result.status } })
+    throw error
+  }
 }
 
 async function expectSingleOwnerStore(result: { status: number; data: unknown }) {
@@ -724,24 +739,33 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       await expectSingleOwnerStore(await rpc(token, 'owner_list_stores'))
       const invitedBearer = invitedOwnerToken()
       if (!invitedBearer) throw new Error('Invited applicant session token was not observed')
-      await expectDenied(await rpc(invitedBearer, 'owner_list_stores'), 'invited applicant')
+      await expectDenied(await rpc(invitedBearer, 'owner_list_stores'), 'invited applicant', {
+        case: 'invited_applicant_list',
+        rpc: 'owner_list_stores',
+      })
       await expectDenied(
         await rpc(token, 'owner_select_store', { p_store_id: input.storeB.id }),
         'Owner selecting Store B',
+        { case: 'owner_a_select_store_b', rpc: 'owner_select_store' },
       )
       await expectDenied(
         await rpc(token, 'portal_get_home', {}, input.storeB.id),
         'Owner reading Store B',
+        { case: 'owner_a_read_store_b', rpc: 'portal_get_home' },
       )
       await expectDenied(
         await rpc(cancelledOwnerToken() ?? '', 'owner_list_stores'),
         'wrong account',
+        { case: 'cancelled_owner_list', rpc: 'owner_list_stores' },
       )
 
       await signIn(shopper, input.shopper, '/owner/stores', () => {})
       const shopperBearer = shopperToken()
       if (!shopperBearer) throw new Error('Shopper session token was not observed')
-      await expectDenied(await rpc(shopperBearer, 'owner_list_stores'), 'Shopper as Owner')
+      await expectDenied(await rpc(shopperBearer, 'owner_list_stores'), 'Shopper as Owner', {
+        case: 'shopper_owner_list',
+        rpc: 'owner_list_stores',
+      })
     })
 
     await step(

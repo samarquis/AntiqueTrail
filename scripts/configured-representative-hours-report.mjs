@@ -90,6 +90,28 @@ const ownerListingApprovalErrorIdentifiers = new Set([
   'partner_claim_unavailable_or_stale',
   'privileged_anchor_stale',
 ])
+const ownerListingDenialRpcs = new Map([
+  ['invited_applicant_list', 'owner_list_stores'],
+  ['owner_a_select_store_b', 'owner_select_store'],
+  ['owner_a_read_store_b', 'portal_get_home'],
+  ['cancelled_owner_list', 'owner_list_stores'],
+  ['shopper_owner_list', 'owner_list_stores'],
+])
+
+function ownerListingDenialEvidence(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const rpc = ownerListingDenialRpcs.get(value.case)
+  if (
+    !rpc ||
+    value.rpc !== rpc ||
+    !Number.isSafeInteger(value.httpStatus) ||
+    value.httpStatus < 100 ||
+    value.httpStatus > 599 ||
+    value.httpStatus === 403
+  )
+    return undefined
+  return { case: value.case, rpc, httpStatus: value.httpStatus }
+}
 
 export function ownerListingPathname(value) {
   if (typeof value !== 'string') return 'unknown'
@@ -132,11 +154,13 @@ export function ownerListingFailure(error) {
       : assertion
         ? 'assertion'
         : 'operation'
+  const ownerDenial = ownerListingDenialEvidence(error?.ownerDenial)
   return {
     ...(assertion ? { assertion } : {}),
     ...(line ? { sourceLine: Number(line[1]) } : {}),
     timeout,
     category,
+    ...(ownerDenial ? { ownerDenial } : {}),
   }
 }
 
@@ -211,6 +235,7 @@ export function ownerListingStepResults(text) {
     }
     if (step?.failure && typeof step.failure === 'object') {
       const failure = step.failure
+      const ownerDenial = ownerListingDenialEvidence(failure.ownerDenial)
       const assertion = ownerListingAssertions.includes(failure.assertion)
         ? failure.assertion
         : undefined
@@ -223,6 +248,7 @@ export function ownerListingStepResults(text) {
         ...(sourceLine ? { sourceLine } : {}),
         timeout: failure.timeout === true,
         category: ownerListingCategories.has(failure.category) ? failure.category : 'operation',
+        ...(ownerDenial ? { ownerDenial } : {}),
       }
     }
     return result

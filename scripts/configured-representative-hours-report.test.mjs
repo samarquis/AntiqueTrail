@@ -222,3 +222,78 @@ test('Owner approval diagnostics retain only allowlisted RPC evidence', () => {
     /private-jwt|private-header|private-result|private-code|private-message|private-response-body/,
   )
 })
+
+test('Owner denial diagnostics retain actual non-403 status through both projections', () => {
+  const error = Object.assign(
+    new Error('Bearer transport-secret person@private.invalid https://local.invalid/?token=secret'),
+    {
+      ownerDenial: {
+        case: 'owner_a_select_store_b',
+        rpc: 'owner_select_store',
+        httpStatus: 500,
+        rawBody: 'private-response-body',
+        bearer: 'private-token',
+        email: 'person@private.invalid',
+        storeId: 'private-store-id',
+        url: 'http://127.0.0.1/private?token=secret',
+      },
+    },
+  )
+  const failure = ownerListingFailure(error)
+  const steps = ownerListingStepResults(
+    JSON.stringify([{ name: 'denial', status: 'failed', failure }]),
+  )
+
+  assert.deepEqual(steps[0].failure, {
+    timeout: false,
+    category: 'operation',
+    ownerDenial: {
+      case: 'owner_a_select_store_b',
+      rpc: 'owner_select_store',
+      httpStatus: 500,
+    },
+  })
+  assert.doesNotMatch(
+    JSON.stringify(steps),
+    /transport-secret|private\.invalid|private-response-body|private-token|private-store-id|token=secret/,
+  )
+})
+
+test('Owner denial projection omits unknown, mismatched, malformed, and expected statuses', () => {
+  const invalid = [
+    { case: 'unknown_case', rpc: 'owner_list_stores', httpStatus: 500 },
+    { case: 'shopper_owner_list', rpc: 'unknown_rpc', httpStatus: 500 },
+    { case: 'owner_a_select_store_b', rpc: 'owner_list_stores', httpStatus: 500 },
+    { case: 'owner_a_select_store_b', rpc: 'owner_select_store', httpStatus: 403 },
+    { case: 'owner_a_select_store_b', rpc: 'owner_select_store', httpStatus: '500 private-token' },
+    { case: 'owner_a_select_store_b', rpc: 'owner_select_store', httpStatus: 500.5 },
+    { case: 'owner_a_select_store_b', rpc: 'owner_select_store', httpStatus: 99 },
+    { case: 'owner_a_select_store_b', rpc: 'owner_select_store', httpStatus: 600 },
+  ]
+
+  for (const ownerDenial of invalid) {
+    const raw = JSON.stringify([
+      {
+        name: 'denial',
+        status: 'failed',
+        failure: {
+          timeout: false,
+          category: 'operation',
+          ownerDenial: { ...ownerDenial, rawBody: 'private-response-body' },
+        },
+      },
+    ])
+    const steps = ownerListingStepResults(raw)
+
+    assert.equal('ownerDenial' in steps[0].failure, false)
+    assert.doesNotMatch(JSON.stringify(steps), /private-token|private-response-body/)
+  }
+})
+
+test('Owner transport failures remain generic without fabricated denial status', () => {
+  const failure = ownerListingFailure(
+    new Error('transport failed Bearer private-token person@private.invalid'),
+  )
+  assert.deepEqual(failure, { timeout: false, category: 'operation' })
+  assert.equal('ownerDenial' in failure, false)
+})
