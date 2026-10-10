@@ -9,7 +9,8 @@ const service = createLocalService({ resumeDirectory: input.directory })
 const A = '00000000-0000-4000-8000-000000001001'
 const B = '00000000-0000-4000-8000-000000001002'
 const uuid = (value: string) => {
-  if (!/^[a-f0-9-]{36}$/.test(value)) throw new Error('Invalid fixture UUID')
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value))
+    throw new Error('Invalid fixture UUID')
   return value
 }
 const owner = uuid(input.users[0].id)
@@ -234,6 +235,249 @@ test('JIT trip entry, authenticated catalog, photo, save and two-store creation'
   await page.reload()
   await expect(page.getByLabel('Ordered trip stops').locator('li')).toHaveCount(2)
   expect((await read(id)).stops.map((s: { store: string }) => s.store)).toEqual([A, B])
+})
+
+test('keyed trip create replays after committed response loss', async ({ page, browser }) => {
+  const name = 'Keyed response-loss trip'
+  const localDate = '2030-10-12'
+  const ownerTripCount = async () =>
+    Number(
+      (
+        await service.sql(`select count(*) from trip_private.trips where owner_id='${owner}';`)
+      ).trim(),
+    )
+  const tripBaseline = await ownerTripCount()
+  let createKey = ''
+  let firstTripId = ''
+  let requestBody: Record<string, unknown> | undefined
+  let createAttempts = 0
+  let stopAttempts = 0
+  let firstOutcome = 'pending'
+  let firstFailureStage = ''
+  let secondOutcome = 'pending'
+  let secondFailureStage = ''
+  let finishFirst!: () => void
+  let finishSecond!: () => void
+  const firstHandled = new Promise<void>((resolve) => (finishFirst = resolve))
+  const secondHandled = new Promise<void>((resolve) => (finishSecond = resolve))
+  const withTimeout = async (promise: Promise<void>, label: string) => {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        promise,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error(label)), 20_000)
+        }),
+      ])
+    } finally {
+      if (timer) clearTimeout(timer)
+    }
+  }
+  const proof = async (tripId: string) => {
+    const result = await service.sql(`
+      select json_build_object(
+        'id', t.trip_id,
+        'owner', t.owner_id,
+        'name', t.name,
+        'date', t.local_date,
+        'receiptCount', (select count(*) from trip_private.trip_create_receipts r
+          where r.actor_user_id=t.owner_id and r.idempotency_key='${createKey}' and r.trip_id=t.trip_id),
+        'creatorCount', (select count(*) from trip_private.trip_participants p
+          where p.trip_id=t.trip_id and p.user_id=t.owner_id
+            and p.participant_role='creator' and p.state='active'),
+        'stops', coalesce((select json_agg(json_build_object('store',s.store_id) order by s.position)
+          from trip_private.trip_stops s where s.trip_id=t.trip_id), '[]'::json),
+        'ownerTripCount', (select count(*) from trip_private.trips own where own.owner_id=t.owner_id)
+      )
+      from trip_private.trips t where t.trip_id='${uuid(tripId)}';
+    `)
+    return JSON.parse(result.trim()) as {
+      id: string
+      owner: string
+      name: string
+      date: string
+      receiptCount: number
+      creatorCount: number
+      stops: { store: string }[]
+      ownerTripCount: number
+    } | null
+  }
+  const onRequest = (request: import('@playwright/test').Request) => {
+    const url = new URL(request.url())
+    if (url.origin === input.endpoint && url.pathname === '/rest/v1/rpc/add_trip_store_stop')
+      stopAttempts += 1
+  }
+  const routeHandler = async (route: import('@playwright/test').Route) => {
+    createAttempts += 1
+    const attempt = createAttempts
+    let stage = 'request-validation'
+    try {
+      const request = route.request()
+      const body = request.postDataJSON() as Record<string, unknown>
+      const destination = new URL('/rest/v1/rpc/create_trip', input.endpoint).href
+      if (
+        request.method() !== 'POST' ||
+        request.url() !== destination ||
+        Object.keys(body).sort().join(',') !== 'idempotency_key,local_date,name' ||
+        body.name !== name ||
+        body.local_date !== localDate ||
+        typeof body.idempotency_key !== 'string'
+      )
+        throw new Error('request-invalid')
+      const key = uuid(body.idempotency_key)
+      if (attempt === 1) {
+        createKey = key
+        requestBody = { ...body }
+        stage = 'receipt-baseline'
+        const priorReceipts = Number(
+          (
+            await service.sql(
+              `select count(*) from trip_private.trip_create_receipts where actor_user_id='${owner}' and idempotency_key='${createKey}';`,
+            )
+          ).trim(),
+        )
+        if (priorReceipts !== 0) throw new Error('receipt-baseline-invalid')
+        stage = 'first-forward'
+        const response = await route.fetch({ maxRetries: 0, maxRedirects: 0 })
+        if (!response.ok()) throw new Error('first-forward-failed')
+        stage = 'first-response-shape'
+        const value = await response.json()
+        if (
+          !value ||
+          typeof value !== 'object' ||
+          Array.isArray(value) ||
+          value.name !== name ||
+          value.localDate !== localDate ||
+          !Array.isArray(value.stops)
+        )
+          throw new Error('first-response-invalid')
+        firstTripId = uuid(value.id)
+        stage = 'first-commit-readback'
+        const committed = await proof(firstTripId)
+        if (
+          !committed ||
+          committed.id !== firstTripId ||
+          committed.owner !== owner ||
+          committed.name !== name ||
+          committed.date !== localDate ||
+          committed.receiptCount !== 1 ||
+          committed.creatorCount !== 1 ||
+          committed.stops.length !== 0 ||
+          committed.ownerTripCount !== tripBaseline + 1
+        )
+          throw new Error('first-commit-readback-invalid')
+        stage = 'first-response-drop'
+        await route.abort('failed')
+        firstOutcome = 'committed-response-dropped'
+        return
+      }
+      if (attempt !== 2 || !requestBody || JSON.stringify(body) !== JSON.stringify(requestBody))
+        throw new Error('retry-payload-invalid')
+      stage = 'retry-forward'
+      const response = await route.fetch({ maxRetries: 0, maxRedirects: 0 })
+      if (!response.ok()) throw new Error('retry-forward-failed')
+      stage = 'retry-response-shape'
+      const value = await response.json()
+      if (
+        !value ||
+        typeof value !== 'object' ||
+        Array.isArray(value) ||
+        uuid(value.id) !== firstTripId ||
+        value.name !== name ||
+        value.localDate !== localDate ||
+        !Array.isArray(value.stops)
+      )
+        throw new Error('retry-response-invalid')
+      stage = 'retry-response-fulfill'
+      await route.fulfill({ response })
+      secondOutcome = 'same-trip-response-fulfilled'
+    } catch {
+      if (attempt === 1) {
+        firstOutcome = 'failed'
+        firstFailureStage = stage
+      } else {
+        secondOutcome = 'failed'
+        secondFailureStage = stage
+      }
+      await route.abort('failed').catch(() => undefined)
+    } finally {
+      if (attempt === 1) finishFirst()
+      if (attempt === 2) finishSecond()
+    }
+  }
+
+  await login(page, 0, `/trips/new?addStoreId=${A}&returnTo=%2Fsaved`)
+  await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+  await page.route('**/rest/v1/rpc/create_trip', routeHandler)
+  page.on('request', onRequest)
+  try {
+    await page.getByLabel('Trip name', { exact: true }).fill(name)
+    await page.getByLabel('Date', { exact: true }).fill(localDate)
+    await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+    await withTimeout(firstHandled, 'first create handler timed out')
+    expect(firstOutcome, firstFailureStage).toBe('committed-response-dropped')
+    await expect(page.getByRole('alert')).toContainText(
+      "We couldn't update this trip. Please try again.",
+    )
+    expect(createAttempts).toBe(1)
+    expect(stopAttempts).toBe(0)
+    await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(name)
+    await expect(page.getByLabel('Trip name', { exact: true })).toBeDisabled()
+    await expect(page.getByLabel('Date', { exact: true })).toHaveValue(localDate)
+    await expect(page.getByLabel('Date', { exact: true })).toBeDisabled()
+    const committed = await proof(firstTripId)
+    expect(committed).toMatchObject({
+      id: firstTripId,
+      owner,
+      name,
+      date: localDate,
+      receiptCount: 1,
+      creatorCount: 1,
+      stops: [],
+      ownerTripCount: tripBaseline + 1,
+    })
+
+    await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+    await withTimeout(secondHandled, 'retry create handler timed out')
+    expect(secondOutcome, secondFailureStage).toBe('same-trip-response-fulfilled')
+    expect(createAttempts).toBe(2)
+    await expect(page.getByText(`Added to ${name}`, { exact: true })).toBeVisible()
+    await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+    await expect(page.getByText(name, { exact: true })).toBeVisible()
+    expect(await read(firstTripId)).toMatchObject({ name, date: localDate, stops: [{ store: A }] })
+    expect(stopAttempts).toBe(1)
+    const finalState = await proof(firstTripId)
+    expect(finalState).toMatchObject({
+      id: firstTripId,
+      owner,
+      name,
+      date: localDate,
+      receiptCount: 1,
+      creatorCount: 1,
+      stops: [{ store: A }],
+      ownerTripCount: tripBaseline + 1,
+    })
+
+    const otherContext = await browser.newContext({ baseURL: input.origin })
+    try {
+      const otherPage = await otherContext.newPage()
+      const otherToken = await login(otherPage, 1, '/trips')
+      let denialProved = false
+      try {
+        await rpc(otherToken, 'get_trip', { trip_id: firstTripId })
+      } catch (error) {
+        denialProved = error instanceof Error && /\bauthorization_lost\b/.test(error.message)
+      }
+      expect(denialProved).toBe(true)
+      expect(await proof(firstTripId)).toMatchObject(finalState)
+      expect(await ownerTripCount()).toBe(tripBaseline + 1)
+    } finally {
+      await otherContext.close()
+    }
+  } finally {
+    page.off('request', onRequest)
+    await page.unroute('**/rest/v1/rpc/create_trip', routeHandler)
+  }
 })
 
 for (const edit of ['date', 'order', 'priority', 'dwell', 'removal']) {

@@ -1,0 +1,135 @@
+name: Keyed trip create response-loss proof
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/keyed-trip-create-proof.yml'
+      - 'e2e/configured-free-shopper*'
+      - 'scripts/configured-free-shopper*'
+      - 'scripts/configured-shopper-*'
+      - 'src/app/App.tsx'
+      - 'src/app/configuredComposition.ts'
+      - 'src/features/auth/**'
+      - 'src/features/trips/**'
+      - 'supabase/config.toml'
+      - 'supabase/migrations/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.nvmrc'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keyed-trip-create-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  keyed-trip-create-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run keyed trip response-loss proof
+        id: proof
+        run: npm run test:e2e:configured-shopper -- --keyed-trip-create
+
+      - name: Prepare allowlisted receipt
+        if: always()
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PROOF_STEP_OUTCOME: ${{ steps.proof.outcome }}
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs'
+          const roots = fs.existsSync('artifacts') ? fs.readdirSync('artifacts') : []
+          const reports = roots.filter(name => name.startsWith('configured-shopper-'))
+            .map(name => `artifacts/${name}/report.json`).filter(file => fs.existsSync(file))
+          if (reports.length !== 1) throw new Error('Expected one configured report')
+          const report = JSON.parse(fs.readFileSync(reports[0], 'utf8'))
+          const title = 'keyed trip create replays after committed response loss'
+          const expectedPairs = new Set([`${title}\0desktop`, `${title}\0phone`])
+          const allowedStages = new Set(['preflight', 'local-services', 'fixtures', 'build', 'preview', 'browser-tests'])
+          const allowedFailedAt = new Set([...allowedStages, 'browser-report', 'cleanup-browser-input', 'cleanup-provider'])
+          const allowedStatuses = new Set(['passed', 'failed', 'skipped', 'timedOut', 'interrupted', 'unavailable'])
+          const allowedAssertions = new Set(['toHaveText', 'toHaveURL', 'toHaveCount', 'toBeVisible', 'toBe', 'toThrow', 'locator.click'])
+          const safeChecks = Array.isArray(report.checks) ? report.checks.map(check => {
+            const known = check && typeof check === 'object'
+            const name = known && check.name === title ? title : 'unexpected'
+            const project = known && ['desktop', 'phone'].includes(check.project) ? check.project : 'unexpected'
+            const status = known && allowedStatuses.has(check.status) ? check.status : 'unavailable'
+            const failure = known && check.failure && typeof check.failure === 'object' ? {
+              ...(Number.isSafeInteger(check.failure.sourceLine) && check.failure.sourceLine > 0
+                ? { sourceLine: check.failure.sourceLine } : {}),
+              ...(allowedAssertions.has(check.failure.assertion)
+                ? { assertion: check.failure.assertion } : {}),
+              timeout: check.failure.timeout === true,
+              strictLocator: check.failure.strictLocator === true,
+            } : undefined
+            return { name, project, status, ...(failure ? { failure } : {}) }
+          }) : []
+          const counts = report.stats && Object.fromEntries(
+            ['expected', 'unexpected', 'skipped', 'flaky'].map(key => [key,
+              Number.isSafeInteger(report.stats[key]) && report.stats[key] >= 0 ? report.stats[key] : null])
+          )
+          const checksValid = Array.isArray(report.checks) && report.checks.length === 2 &&
+            safeChecks.every(check => check.name === title && check.status === 'passed') &&
+            new Set(safeChecks.map(check => `${check.name}\0${check.project}`)).size === 2 &&
+            safeChecks.every(check => expectedPairs.has(`${check.name}\0${check.project}`))
+          const cleanupFailuresValid = Array.isArray(report.cleanupFailures) && report.cleanupFailures.length === 0
+          const receipt = {
+            environment: 'github-actions-disposable',
+            sourceSha: /^[a-f0-9]{40}$/i.test(report.sourceSha ?? '') ? report.sourceSha : '',
+            expectedSourceSha: process.env.EXPECTED_SOURCE_SHA,
+            sourceDirty: typeof report.sourceDirty === 'boolean' ? report.sourceDirty : null,
+            scope: report.scope === 'keyed-trip-create' ? report.scope : 'unavailable',
+            evidenceClass: report.evidenceClass === 'real-local-browser' ? report.evidenceClass : 'unavailable',
+            commandSuccess: process.env.PROOF_STEP_OUTCOME === 'success',
+            status: ['passed', 'failed', 'unavailable'].includes(report.status) ? report.status : 'unavailable',
+            stage: allowedStages.has(report.stage) ? report.stage : 'unclassified',
+            failedAt: allowedFailedAt.has(report.failedAt) ? report.failedAt : (report.failedAt ? 'unclassified' : undefined),
+            cleanup: ['removed', 'failed', 'not-started'].includes(report.cleanup) ? report.cleanup : 'unavailable',
+            cleanupFailures: Array.isArray(report.cleanupFailures)
+              ? report.cleanupFailures.filter(value => ['browser-input-removal', 'service-cleanup'].includes(value))
+              : [],
+            stats: counts,
+            checks: safeChecks,
+          }
+          fs.mkdirSync('artifacts', { recursive: true })
+          fs.writeFileSync('artifacts/keyed-trip-create-receipt.json', JSON.stringify(receipt, null, 2))
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            '```json\n' + JSON.stringify(receipt, null, 2) + '\n```\n')
+          const valid = receipt.commandSuccess && receipt.sourceSha === process.env.EXPECTED_SOURCE_SHA &&
+            receipt.sourceDirty === false && receipt.scope === 'keyed-trip-create' &&
+            receipt.evidenceClass === 'real-local-browser' && receipt.status === 'passed' &&
+            receipt.stage === 'browser-tests' && !report.failedAt && receipt.cleanup === 'removed' &&
+            cleanupFailuresValid && receipt.cleanupFailures.length === 0 &&
+            counts?.expected === 2 && counts?.unexpected === 0 && counts?.skipped === 0 && counts?.flaky === 0 &&
+            checksValid && report.errors?.length === 0
+          if (!valid) throw new Error('Configured keyed-trip proof receipt rejected')
+          JS
+
+      - name: Upload allowlisted receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: keyed-trip-create-receipt
+          path: artifacts/keyed-trip-create-receipt.json
+          if-no-files-found: error

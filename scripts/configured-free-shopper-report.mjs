@@ -1,4 +1,20 @@
-export function browserReport(text, expected = 18) {
+export function browserReport(text, expected = 18, requiredCases = []) {
+  if (
+    !Array.isArray(requiredCases) ||
+    requiredCases.some(
+      (item) =>
+        !item ||
+        Object.keys(item).length !== 2 ||
+        typeof item.name !== 'string' ||
+        !item.name ||
+        typeof item.project !== 'string' ||
+        !item.project,
+    )
+  )
+    throw new Error('Malformed required browser cases')
+  const requiredKeys = requiredCases.map(({ name, project }) => JSON.stringify([name, project]))
+  if (new Set(requiredKeys).size !== requiredKeys.length)
+    throw new Error('Malformed required browser cases')
   const result = JSON.parse(text)
   const stats = result?.stats
   if (!stats || !Array.isArray(result.suites) || !Array.isArray(result.errors))
@@ -49,13 +65,32 @@ export function browserReport(text, expected = 18) {
     }
   }
   visit(result.suites)
+  const requiredCasesPassed = requiredCases.every(({ name, project }) => {
+    const matches = checks.filter((check) => check.name === name && check.project === project)
+    return matches.length === 1 && matches[0].status === 'passed'
+  })
   const passed =
     checks.length === expected &&
     checks.every((check) => check.status === 'passed') &&
+    requiredCasesPassed &&
     stats.expected === expected &&
     stats.unexpected === 0 &&
     stats.skipped === 0 &&
     stats.flaky === 0 &&
     result.errors.length === 0
   return { stats, checks, status: passed ? 'passed' : 'failed' }
+}
+
+export function recordCleanupFailure(report, category) {
+  const failedAt =
+    category === 'browser-input-removal'
+      ? 'cleanup-browser-input'
+      : category === 'service-cleanup'
+        ? 'cleanup-provider'
+        : undefined
+  if (!failedAt) throw new Error('Malformed cleanup failure category')
+  report.cleanup = 'failed'
+  report.cleanupFailures.push(category)
+  report.status = 'failed'
+  report.failedAt ??= failedAt
 }
