@@ -390,14 +390,49 @@ test('Owner public readback projection permits 200 detail and keeps not-observed
 test('Owner public readback projection rejects inconsistent and malformed evidence', () => {
   const invalid = [
     { case: 'unknown_case', response: 'response', httpStatus: 503, visibleState: 'error' },
-    { case: 'store_b_after_denied_write', response: 'unknown', httpStatus: 503, visibleState: 'error' },
-    { case: 'store_b_after_denied_write', response: 'response', httpStatus: 503, visibleState: 'private' },
+    {
+      case: 'store_b_after_denied_write',
+      response: 'unknown',
+      httpStatus: 503,
+      visibleState: 'error',
+    },
+    {
+      case: 'store_b_after_denied_write',
+      response: 'response',
+      httpStatus: 503,
+      visibleState: 'private',
+    },
     { case: 'store_b_after_denied_write', response: 'response', visibleState: 'error' },
-    { case: 'store_b_after_denied_write', response: 'response', httpStatus: '503 private-token', visibleState: 'error' },
-    { case: 'store_b_after_denied_write', response: 'response', httpStatus: 503.5, visibleState: 'error' },
-    { case: 'store_b_after_denied_write', response: 'response', httpStatus: 99, visibleState: 'error' },
-    { case: 'store_b_after_denied_write', response: 'response', httpStatus: 600, visibleState: 'error' },
-    { case: 'store_b_after_denied_write', response: 'not_observed', httpStatus: 503, visibleState: 'loading' },
+    {
+      case: 'store_b_after_denied_write',
+      response: 'response',
+      httpStatus: '503 private-token',
+      visibleState: 'error',
+    },
+    {
+      case: 'store_b_after_denied_write',
+      response: 'response',
+      httpStatus: 503.5,
+      visibleState: 'error',
+    },
+    {
+      case: 'store_b_after_denied_write',
+      response: 'response',
+      httpStatus: 99,
+      visibleState: 'error',
+    },
+    {
+      case: 'store_b_after_denied_write',
+      response: 'response',
+      httpStatus: 600,
+      visibleState: 'error',
+    },
+    {
+      case: 'store_b_after_denied_write',
+      response: 'not_observed',
+      httpStatus: 503,
+      visibleState: 'loading',
+    },
   ]
 
   for (const ownerPublicReadback of invalid) {

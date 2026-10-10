@@ -414,9 +414,7 @@ async function openPublicStore(browser: Browser, slug: string) {
   return { context, page }
 }
 
-type PublicCatalogObservation =
-  | { kind: 'response'; response: Response }
-  | { kind: 'not_observed' }
+type PublicCatalogObservation = { kind: 'response'; response: Response } | { kind: 'not_observed' }
 
 function observePublicStoreDetails(page: Page, slug: string): Promise<PublicCatalogObservation> {
   const endpointOrigin = new URL(input.endpoint).origin
@@ -450,9 +448,19 @@ function observePublicStoreDetails(page: Page, slug: string): Promise<PublicCata
 }
 
 async function publicStoreVisibleState(page: Page) {
-  if (await page.getByRole('heading', { name: 'Sibling Market', exact: true }).isVisible().catch(() => false))
+  if (
+    await page
+      .getByRole('heading', { name: 'Sibling Market', exact: true })
+      .isVisible()
+      .catch(() => false)
+  )
     return 'detail'
-  if (await page.getByRole('heading', { name: 'Store not found', exact: true }).isVisible().catch(() => false))
+  if (
+    await page
+      .getByRole('heading', { name: 'Store not found', exact: true })
+      .isVisible()
+      .catch(() => false)
+  )
     return 'not_found'
   if (
     await page
@@ -462,15 +470,17 @@ async function publicStoreVisibleState(page: Page) {
       .catch(() => false)
   )
     return 'error'
-  if (await page.getByRole('heading', { name: 'Finding stores', exact: true }).isVisible().catch(() => false))
+  if (
+    await page
+      .getByRole('heading', { name: 'Finding stores', exact: true })
+      .isVisible()
+      .catch(() => false)
+  )
     return 'loading'
   return 'unknown'
 }
 
-async function publicStoreReadbackFailure(
-  page: Page,
-  observation: PublicCatalogObservation,
-) {
+async function publicStoreReadbackFailure(page: Page, observation: PublicCatalogObservation) {
   const visibleState = await publicStoreVisibleState(page)
   if (observation.kind === 'not_observed')
     return sanitizeOwnerPublicReadbackEvidence({
@@ -864,11 +874,10 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
       }
       const cancelledToken = cancelledOwnerToken()
       if (!cancelledToken) throw new Error('Owner listing session was not observed')
-      await expectDenied(
-        await rpc(cancelledToken, 'owner_list_stores'),
-        'wrong account',
-        { case: 'cancelled_owner_list', rpc: 'owner_list_stores' },
-      )
+      await expectDenied(await rpc(cancelledToken, 'owner_list_stores'), 'wrong account', {
+        case: 'cancelled_owner_list',
+        rpc: 'owner_list_stores',
+      })
 
       await signIn(shopper, input.shopper, '/owner/stores', () => {})
       const shopperBearer = shopperToken()
@@ -1122,7 +1131,10 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
           await expect(publicPage.getByRole('link', { name: 'Call 785-555-0182' })).toBeVisible()
         } catch (error) {
           if (error instanceof Error) {
-            const ownerPublicReadback = await publicStoreReadbackFailure(publicPage, await observation)
+            const ownerPublicReadback = await publicStoreReadbackFailure(
+              publicPage,
+              await observation,
+            )
             if (ownerPublicReadback) Object.assign(error, { ownerPublicReadback })
           }
           throw error

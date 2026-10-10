@@ -106,7 +106,13 @@ const ownerListingPublicReadbackErrorCodes = new Set([
   'MAP_UNAVAILABLE',
   'RATE_LIMITED',
 ])
-const ownerListingPublicReadbackStates = new Set(['detail', 'not_found', 'error', 'loading', 'unknown'])
+const ownerListingPublicReadbackStates = new Set([
+  'detail',
+  'not_found',
+  'error',
+  'loading',
+  'unknown',
+])
 
 function ownerListingDenialEvidence(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
