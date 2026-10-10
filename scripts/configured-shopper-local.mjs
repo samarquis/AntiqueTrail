@@ -19,6 +19,28 @@ const readinessFailureCategories = new Set([
   'httpFailure',
   'invalidResponse',
 ])
+const readinessSafeErrorCodes = new Set([
+  'ALPHA_AUTH_REQUIRED',
+  'CATALOG_UNAVAILABLE',
+  'GATEWAY_UNAVAILABLE',
+  'INVALID_OPERATION',
+  'INVALID_REQUEST',
+  'MAP_UNAVAILABLE',
+  'RATE_LIMITED',
+  'BOOT_ERROR',
+  'WORKER_ERROR',
+  'WORKER_LIMIT',
+])
+const readinessTransportCodes = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'EHOSTUNREACH',
+  'ENETUNREACH',
+  'ENOTFOUND',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_SOCKET',
+])
 
 export function getReadinessFailureMetadata(error) {
   if (error === null || (typeof error !== 'object' && typeof error !== 'function')) return null
@@ -30,9 +52,56 @@ export function getReadinessFailureMetadata(error) {
   }
 }
 
-function tagReadinessFailure(error, category, status) {
+function tagReadinessFailure(error, category, status, { safeErrorCode, transportCode } = {}) {
   if (error !== null && (typeof error === 'object' || typeof error === 'function'))
-    readinessFailureMetadata.set(error, { category, status })
+    readinessFailureMetadata.set(error, {
+      category,
+      status: isReadinessHttpStatus(status) ? status : null,
+      safeErrorCode: readinessSafeErrorCodes.has(safeErrorCode) ? safeErrorCode : null,
+      transportCode: readinessTransportCodes.has(transportCode) ? transportCode : null,
+    })
+}
+
+function responseErrorCode(data) {
+  try {
+    const nested = data?.error?.code
+    const value = nested === undefined ? data?.code : nested
+    return typeof value === 'string' && readinessSafeErrorCodes.has(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+function fetchTransportCode(error) {
+  try {
+    const nested = error?.cause?.code
+    const value = nested === undefined ? error?.code : nested
+    return typeof value === 'string' && readinessTransportCodes.has(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+function servingProcessEvidence(readServingProcessState) {
+  try {
+    const state = readServingProcessState()
+    if (!state || typeof state !== 'object' || Array.isArray(state))
+      return { servingState: 'unavailable', servingExitCode: null }
+    const pid = state.pid
+    const exitCode = state.exitCode
+    const signalCode = state.signalCode
+    if (!Number.isSafeInteger(pid) || pid <= 0)
+      return { servingState: 'unavailable', servingExitCode: null }
+    if (Number.isInteger(exitCode) && exitCode >= 0 && exitCode <= 255)
+      return { servingState: 'exited', servingExitCode: exitCode }
+    if (typeof signalCode === 'string' && signalCode.length > 0)
+      return { servingState: 'signaled', servingExitCode: null }
+    if (exitCode === null && signalCode === null)
+      return { servingState: 'running', servingExitCode: null }
+  } catch {
+    /* A diagnostic snapshot must never replace the readiness failure. */
+  }
+  return { servingState: 'unavailable', servingExitCode: null }
 }
 
 function isReadinessHttpStatus(status) {
@@ -258,7 +327,7 @@ async function performLoopbackRequest(
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     })
   } catch (error) {
-    tagReadinessFailure(error, 'fetchFailure')
+    tagReadinessFailure(error, 'fetchFailure', null, { transportCode: fetchTransportCode(error) })
     throw error
   }
   const status = isReadinessHttpStatus(response?.status) ? response.status : undefined
@@ -270,6 +339,8 @@ async function performLoopbackRequest(
     tagReadinessFailure(error, 'responseParseFailure', status)
     throw error
   }
+  const safeErrorCode = responseErrorCode(data)
+  metadata.safeErrorCode = safeErrorCode
   if (!response.ok) {
     // Whitelist server diagnostic fields; never echo arbitrary request/response bodies.
     const code = String(data?.error?.code ?? data?.code ?? response.status)
@@ -279,7 +350,7 @@ async function performLoopbackRequest(
       .replace(/[^A-Za-z0-9_ .]/g, '')
       .slice(0, 160)
     const error = new Error(`HTTP ${response.status} ${code} ${message}`)
-    tagReadinessFailure(error, 'httpFailure', status)
+    tagReadinessFailure(error, 'httpFailure', status, { safeErrorCode })
     throw error
   }
   return data
@@ -321,6 +392,7 @@ export async function waitForLocalServiceReadiness(
   request,
   signal,
   wait = () => new Promise((resolve) => setTimeout(resolve, 1000)),
+  readServingProcessState = () => undefined,
 ) {
   let ready = false
   let attempts = 0
@@ -332,6 +404,35 @@ export async function waitForLocalServiceReadiness(
     unclassifiedFailure: 0,
   }
   const httpStatusCounts = new Map()
+  const failures = { first: null, firstHttp: null, last: null }
+  function recordFailure(attempt, category, metadata) {
+    if (!run.users.length) return
+    const status = isReadinessHttpStatus(metadata?.status) ? metadata.status : null
+    const firstHttp =
+      failures.firstHttp === null &&
+      (category === 'httpFailure' || category === 'responseParseFailure') &&
+      status !== null
+    const shouldSnapshot = failures.first === null || firstHttp || attempt === 60
+    const serving = shouldSnapshot
+      ? servingProcessEvidence(readServingProcessState)
+      : { servingState: 'unavailable', servingExitCode: null }
+    const record = {
+      attempt,
+      category,
+      httpStatus: status,
+      safeErrorCode: readinessSafeErrorCodes.has(metadata?.safeErrorCode)
+        ? metadata.safeErrorCode
+        : null,
+      transportCode:
+        category === 'fetchFailure' && readinessTransportCodes.has(metadata?.transportCode)
+          ? metadata.transportCode
+          : null,
+      ...serving,
+    }
+    if (failures.first === null) failures.first = record
+    if (firstHttp) failures.firstHttp = record
+    failures.last = record
+  }
   for (let attempt = 0; attempt < 60; attempt++) {
     signal?.throwIfAborted()
     attempts++
@@ -352,6 +453,7 @@ export async function waitForLocalServiceReadiness(
         const status = readinessRequestMetadata.get(pending)?.status
         if (isReadinessHttpStatus(status))
           httpStatusCounts.set(status, (httpStatusCounts.get(status) ?? 0) + 1)
+        recordFailure(attempts, 'invalidResponse', readinessRequestMetadata.get(pending))
       } else {
         const result = await request('/functions/v1/account-registration', {
           key: run.anonKey,
@@ -371,15 +473,17 @@ export async function waitForLocalServiceReadiness(
         error !== null && (typeof error === 'object' || typeof error === 'function')
           ? readinessFailureMetadata.get(error)
           : undefined
-      const category = metadata?.category
-      if (Object.hasOwn(categoryCounts, category)) categoryCounts[category]++
-      else categoryCounts.unclassifiedFailure++
+      const category = Object.hasOwn(categoryCounts, metadata?.category)
+        ? metadata.category
+        : 'unclassifiedFailure'
+      categoryCounts[category]++
       const status = metadata?.status
       if (
         (category === 'httpFailure' || category === 'responseParseFailure') &&
         isReadinessHttpStatus(status)
       )
         httpStatusCounts.set(status, (httpStatusCounts.get(status) ?? 0) + 1)
+      recordFailure(attempts, category, metadata)
     }
     await wait()
   }
@@ -394,8 +498,9 @@ export async function waitForLocalServiceReadiness(
         attempts,
         categoryCounts,
         httpStatusCounts: httpStatuses,
+        failures,
       }
-      // Fixed fields and at most 60 attempts keep this record below 2 KiB.
+      // Fixed allowlists and three projected records keep this line below 4 KiB.
       try {
         process.stderr.write(`${JSON.stringify(diagnostic)}\n`)
       } catch {
@@ -708,7 +813,7 @@ export function createLocalService({
       env: proxy.env,
     })
     serving.on('error', () => {})
-    await waitForLocalServiceReadiness(run, request, signal)
+    await waitForLocalServiceReadiness(run, request, signal, undefined, () => serving)
     return run
   }
   async function cleanup() {
