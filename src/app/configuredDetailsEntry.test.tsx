@@ -74,11 +74,11 @@ describe('configured Details Add to Trip entry', () => {
     vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
     const user = userEvent.setup()
     await openDetails()
-    const action = screen.getByRole('link', { name: 'Add to Trip', exact: true })
+    const action = screen.getByRole('link', { name: 'Add to Trip' })
     expect(action).toHaveAttribute('href', target)
     await user.click(action)
-    expect(await screen.findByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
-    expect(screen.getByRole('link', { name: 'Create account', exact: true })).toHaveAttribute(
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute(
       'href',
       `/auth/register?returnTo=${encodeURIComponent(target)}`,
     )
@@ -89,10 +89,10 @@ describe('configured Details Add to Trip entry', () => {
     vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
     const user = userEvent.setup()
     await openDetails({ identity: 'shopper-a' })
-    const action = screen.getByRole('link', { name: 'Add to Trip', exact: true })
+    const action = screen.getByRole('link', { name: 'Add to Trip' })
     expect(action).toHaveAttribute('href', target)
     await user.click(action)
-    expect(await screen.findByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+    expect(await screen.findByRole('heading', { name: 'Add to Trip' })).toBeVisible()
     expect(await screen.findByText(/This store is already on:/)).toBeVisible()
   })
 
@@ -100,14 +100,14 @@ describe('configured Details Add to Trip entry', () => {
     vi.stubEnv('DEV', false)
     vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
     await openDetails({ marker })
-    expect(screen.queryByRole('link', { name: 'Add to Trip', exact: true })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Add to Trip' })).not.toBeInTheDocument()
   })
 
   it('public-test restriction wins over the configured marker', async () => {
     vi.stubEnv('DEV', false)
     vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'true')
     await openDetails()
-    expect(screen.queryByRole('link', { name: 'Add to Trip', exact: true })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Add to Trip' })).not.toBeInTheDocument()
   })
 
   it.each(['store-owner', 'representative', 'administrator'] as const)(
@@ -116,7 +116,7 @@ describe('configured Details Add to Trip entry', () => {
       vi.stubEnv('DEV', false)
       vi.stubEnv('VITE_PUBLIC_TEST_CATALOG_ONLY', 'false')
       await openDetails({ identity })
-      expect(screen.queryByRole('link', { name: 'Add to Trip', exact: true })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: 'Add to Trip' })).not.toBeInTheDocument()
     },
   )
 
@@ -138,6 +138,6 @@ describe('configured Details Add to Trip entry', () => {
     expect(
       screen.getByText('Local preview only. Save and store claim actions are unavailable.'),
     ).toBeVisible()
-    expect(screen.queryByRole('link', { name: 'Add to Trip', exact: true })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Add to Trip' })).not.toBeInTheDocument()
   })
 })
