@@ -462,10 +462,30 @@ select set_config('request.path','rpc/get_trip',true);
 select throws_ok($$select app_public.create_trip('Wrong route fixture','2030-10-12',
   '63400000-0000-4000-8000-000000000105')$$,'42501','internal_fixture_denied',
   'wrong internal route is denied by existing trip fixture guard');
+reset role;
+set local role identity_service;
+select is((select count(*)::integer from trip_private.trips
+  where owner_id='63400000-0000-4000-8000-000000000003' and name='Wrong route fixture'),0,
+  'wrong route denial writes no trip');
+select is((select count(*)::integer from trip_private.trip_create_receipts
+  where actor_user_id='63400000-0000-4000-8000-000000000003'
+    and idempotency_key='63400000-0000-4000-8000-000000000105'),0,
+  'wrong route denial writes no receipt');
+reset role;
+set local role authenticated;
 select set_config('request.path','',true);
 select throws_ok($$select app_public.create_trip('Missing route fixture','2030-10-12',
-  '63400000-0000-4000-8000-000000000106')$$,'42501','internal_fixture_denied',
-  'missing internal route is denied by existing trip fixture guard');
+  '63400000-0000-4000-8000-000000000106')$$,'P0001','authorization_lost',
+  'missing internal route is denied at the existing session boundary');
+reset role;
+set local role identity_service;
+select is((select count(*)::integer from trip_private.trips
+  where owner_id='63400000-0000-4000-8000-000000000003' and name='Missing route fixture'),0,
+  'missing route denial writes no trip');
+select is((select count(*)::integer from trip_private.trip_create_receipts
+  where actor_user_id='63400000-0000-4000-8000-000000000003'
+    and idempotency_key='63400000-0000-4000-8000-000000000106'),0,
+  'missing route denial writes no receipt');
 reset role;
 do $$begin raise notice 'issue634.phase.internal_fixture_complete'; end $$;
 
@@ -479,6 +499,12 @@ insert into app_private.account_deletion_requests(deletion_request_id,user_id,re
 values('63400000-0000-4000-8000-000000000030','63400000-0000-4000-8000-000000000001',
   statement_timestamp()-interval '8 days',statement_timestamp()-interval '1 day');
 reset role;
+select set_config('request.jwt.claims','{}',true);
+select set_config('request.method','',true);
+select set_config('request.path','',true);
+select set_config('request.headers','{}',true);
+select is(app_public.request_user_id(),null::uuid,
+  'background account lifecycle runs without a request user');
 set local role account_lifecycle_service;
 create temp table issue634_claimed as
 select * from app_public.claim_due_account_deletions(statement_timestamp(),10);
