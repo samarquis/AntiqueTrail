@@ -90,12 +90,13 @@ select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('7
   'P0001','synthetic_catalog_outside_stage','valid Nearby request preserves the Edge public-fallback signal outside alpha');
 reset role;
 set local role identity_service;
+update app_private.account_registration_config set stage_receipt_id=null where id=1;
 update app_private.environment_stage set stage='synthetic_alpha' where id=1;
 reset role;
 set local role public_catalog_gateway;
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('8',64),null,null,'nearby-list',
   '{"p_q":"Nearby Boundary","p_category":"issue-623","p_area":null,"p_device_latitude":0,"p_device_longitude":0.000004207810051198857,"p_device_radius_miles":5}')$$,
-  '42501','synthetic_catalog_map_disabled','synthetic alpha denies Nearby without the public fallback signal');
+  '42501','synthetic_catalog_evidence_invalid','missing ordinary stage evidence denies Nearby without public fallback');
 reset role;
 
 update release_private.release_capabilities set public_catalog=false,public_claims=false,public_reviews=false,public_registration=false,product_promotion=false

@@ -24,8 +24,8 @@ update app_private.environment_stage set stage='synthetic_alpha',
  receipt_id='99000000-0000-4000-8000-000000000031',capabilities=capabilities||'{"private_auth":true}'::jsonb where id=1;
 update app_private.account_registration_config set mode='receipt_only',
  stage_receipt_id='99000000-0000-4000-8000-000000000031' where id=1;
-update app_private.registration_quarantine_latch set state='open',blocked_at=null where id=1;
 reset role;
+update app_private.registration_quarantine_latch set state='open',blocked_at=null where id=1;
 
 alter role authenticator set pgrst.db_pre_request = 'app_public.internal_review_pre_request';
 
@@ -543,17 +543,15 @@ select is((select array_agg((x->>'id')::uuid order by x->>'id') from jsonb_array
  array['99000000-0000-4000-8000-000000007101'::uuid,'99000000-0000-4000-8000-000000007102'::uuid],
  'restored ordinary gate mutations preserve B positive');
 reset role;
-set local role identity_service;
 update app_private.registration_quarantine_latch set state='blocked',blocked_at=statement_timestamp() where id=1;
-reset role;
 set local role public_catalog_gateway;
 select throws_ok($$select app_public.synthetic_catalog_gateway_request(repeat('b',64),
  '99000000-0000-4000-8000-000000000002','99000000-0000-4000-8000-000000000012','nearby-list',
  '{"p_q":null,"p_category":null,"p_area":null,"p_device_latitude":0,"p_device_longitude":0,"p_device_radius_miles":5}')$$,
  '42501','synthetic_catalog_evidence_invalid','closed quarantine latch denies ordinary shopper');
 reset role;
-set local role identity_service;
 update app_private.registration_quarantine_latch set state='open',blocked_at=null where id=1;
+set local role identity_service;
 update app_private.profiles set status='deletion_scheduled',deletion_due_at=statement_timestamp()+interval '1 day'
 where user_id='99000000-0000-4000-8000-000000000002';
 reset role;
