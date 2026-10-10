@@ -753,12 +753,10 @@ test('configured Owner setup, exact-store edits, approval, projection, and denia
         'Owner reading Store B',
         { case: 'owner_a_read_store_b', rpc: 'portal_get_home' },
       )
-      if (!cancelledOwnerToken()) {
+      if (phase === 'owner-identity') {
         await signIn(cancelledOwner, input.ownerCancel, '/owner/stores', () => {})
-      } else {
-        await cancelledOwner.goto('/owner/stores')
+        await expect(cancelledOwner.getByRole('alert')).toBeVisible()
       }
-      await expect(cancelledOwner.getByRole('alert')).toBeVisible()
       const cancelledToken = cancelledOwnerToken()
       if (!cancelledToken) throw new Error('Owner listing session was not observed')
       await expectDenied(
