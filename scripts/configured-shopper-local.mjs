@@ -1,6 +1,7 @@
 /* global process, Buffer, URL, fetch, AbortSignal, setTimeout, clearTimeout */
 import { dockerLoopbackProxy } from './configured-shopper-docker.mjs'
 import { registrationEnvironment } from './local-signup-contract.mjs'
+import { createServingDiagnosticObserver } from './configured-shopper-serving-diagnostic.mjs'
 import { spawn } from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -12,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const CLI_VERSION = '2.115.0'
 const readinessFailureMetadata = new WeakMap()
+const servingDiagnostics = new WeakMap()
 const readinessRequestMetadata = new WeakMap()
 const commandFailureMetadata = new WeakMap()
 const startupFailureMetadata = new WeakMap()
@@ -130,6 +132,12 @@ export function captureLocalStartupFailure(run, error) {
     command.commandExitCode <= 255
       ? command.commandExitCode
       : null
+  let servingDiagnostic
+  try {
+    servingDiagnostic = servingDiagnostics.get(run)?.()
+  } catch {
+    // Best-effort diagnostics must not replace the original startup failure.
+  }
   return {
     step: startupSteps.has(run?.startupStep) ? run.startupStep : 'unknown',
     category,
@@ -141,6 +149,7 @@ export function captureLocalStartupFailure(run, error) {
       ? readiness.transportCode
       : null,
     commandExitCode,
+    ...(servingDiagnostic ? { servingDiagnostic } : {}),
   }
 }
 
@@ -946,17 +955,25 @@ export function createLocalService({
       if (registered !== true) throw new Error('Application session registration failed')
       run.users.push(actor)
     }
-    // A separate CLI process owns the Edge runtime; capture no potentially secret output.
+    // A separate CLI process owns the Edge runtime. Never persist or forward raw output.
     const args = ['functions', 'serve', '--workdir', directory, '--network-id', projectId]
+    const servingObserver = createServingDiagnosticObserver()
     serving = runAtLocalStartupStep(run, 'edge-spawn', () =>
       spawn(cliPath, args, {
         cwd: ROOT,
         windowsHide: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'ignore', 'pipe'],
         env: proxy.env,
       }),
     )
     serving.on('error', () => {})
+    serving.stderr.on('data', servingObserver.observe)
+    serving.stderr.on('end', servingObserver.finish)
+    serving.stderr.on('error', servingObserver.unavailable)
+    servingDiagnostics.set(run, () => ({
+      ...servingObserver.snapshot(),
+      ...servingProcessEvidence(() => serving),
+    }))
     await runAtLocalStartupStep(run, 'edge-readiness', () =>
       waitForLocalServiceReadiness(run, request, signal, undefined, () => serving),
     )
