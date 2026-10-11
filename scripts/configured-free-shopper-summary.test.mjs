@@ -25,6 +25,13 @@ const metadata = {
 function summarize(report) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'seed-summary-'))
   try {
+    const scripts = path.join(directory, 'scripts')
+    fs.mkdirSync(scripts)
+    for (const name of [
+      'issue-568-private-stop-proof-report.mjs',
+      'configured-shopper-serving-diagnostic.mjs',
+    ])
+      fs.copyFileSync(new URL(name, import.meta.url), path.join(scripts, name))
     const run = path.join(directory, 'artifacts', 'configured-shopper-fixture')
     fs.mkdirSync(run, { recursive: true })
     fs.writeFileSync(path.join(run, 'report.json'), JSON.stringify(report))
@@ -89,7 +96,7 @@ test('uploaded summary retains safe classified failure and drops raw report data
   })
   assert.deepEqual(
     Object.keys(result.summary).sort(),
-    [...Object.keys(metadata), 'stats', 'checks'].sort(),
+    [...Object.keys(metadata), 'stats', 'checks', 'startupFailure'].sort(),
   )
   assert.doesNotMatch(
     JSON.stringify(result.summary),
@@ -100,6 +107,7 @@ test('uploaded summary retains safe classified failure and drops raw report data
 test('passing checks contain no failure diagnostics', () => {
   const result = summarize(classified('passed', { message: secret }))
   assert.equal(result.status, 0)
+  assert.equal(result.summary.startupFailure, null)
   assert.deepEqual(result.summary.checks, [
     { name: 'session scenario', project: 'desktop', status: 'passed' },
   ])
@@ -277,6 +285,99 @@ test('malformed check collections fail without publishing raw input', () => {
     const result = summarize({ ...metadata, checks })
     assert.notEqual(result.status, 0)
     assert.equal(result.summary, undefined)
+    assert.match(result.stderr, /TypeError/)
+    assert.doesNotMatch(result.stderr, /ERR_MODULE_NOT_FOUND/)
     assert.doesNotMatch(result.stderr, /private-token|private.invalid|Bearer/)
+  }
+})
+
+const unknownStartup = {
+  step: 'unknown',
+  category: 'unknown',
+  httpStatus: null,
+  safeErrorCode: null,
+  transportCode: null,
+  commandExitCode: null,
+}
+const servingDiagnostic = {
+  capture: 'complete',
+  observedErrorClass: 'container-exited',
+  reportedExitCode: 42,
+  servingState: 'exited',
+  servingExitCode: 1,
+}
+const startupFailure = {
+  ...unknownStartup,
+  step: 'edge-readiness',
+  category: 'readiness_exhausted',
+  servingDiagnostic,
+}
+
+test('startup diagnostics preserve bounded observations and primary failure through cleanup failure', () => {
+  const result = summarize({
+    ...metadata,
+    failedAt: 'local-services',
+    cleanup: 'failed',
+    startupFailure: { ...startupFailure, stderr: secret, token: secret },
+    errors: [secret],
+  })
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.summary.status, 'failed')
+  assert.equal(result.summary.failedAt, 'local-services')
+  assert.equal(result.summary.cleanup, 'failed')
+  assert.deepEqual(result.summary.startupFailure, startupFailure)
+  assert.doesNotMatch(JSON.stringify(result.summary), /private-token|private.invalid|Bearer|stderr/)
+})
+
+test('missing and malformed startup metadata stay unknown while other stages omit observations', () => {
+  for (const value of [undefined, null, {}, [], secret, 42]) {
+    const result = summarize({ ...metadata, failedAt: 'local-services', startupFailure: value })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(result.summary.startupFailure, unknownStartup)
+  }
+  for (const failedAt of [undefined, 'browser-tests', 'cleanup-provider', secret]) {
+    const result = summarize({ ...metadata, failedAt, startupFailure })
+    assert.equal(result.status, 0, result.stderr)
+    assert.equal(result.summary.startupFailure, null)
+  }
+})
+
+test('hostile startup values and invalid or extra-key serving diagnostics fail closed', () => {
+  const hostile = summarize({
+    ...metadata,
+    failedAt: 'local-services',
+    startupFailure: {
+      step: secret,
+      category: secret,
+      httpStatus: 600,
+      safeErrorCode: secret,
+      transportCode: secret,
+      commandExitCode: 256,
+    },
+  })
+  assert.equal(hostile.status, 0, hostile.stderr)
+  assert.deepEqual(hostile.summary.startupFailure, unknownStartup)
+  for (const value of [
+    { ...servingDiagnostic, stderr: secret },
+    { ...servingDiagnostic, observedErrorClass: secret },
+    { ...servingDiagnostic, capture: 'truncated' },
+    { ...servingDiagnostic, reportedExitCode: 256 },
+    { ...servingDiagnostic, servingExitCode: -1 },
+  ]) {
+    const result = summarize({
+      ...metadata,
+      failedAt: 'local-services',
+      startupFailure: { ...startupFailure, servingDiagnostic: value },
+    })
+    assert.equal(result.status, 0, result.stderr)
+    assert.deepEqual(result.summary.startupFailure, {
+      ...unknownStartup,
+      step: 'edge-readiness',
+      category: 'readiness_exhausted',
+    })
+    assert.doesNotMatch(
+      JSON.stringify(result.summary),
+      /private-token|private.invalid|Bearer|stderr/,
+    )
   }
 })
