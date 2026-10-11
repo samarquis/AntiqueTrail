@@ -160,3 +160,74 @@ for (const [name, change] of [
     assert.equal(inspectCombined(value).status, 'failed')
   })
 }
+
+const denialTitle =
+  'anonymous Details chooser rejects unavailable store and revoked session without writes'
+const denialRequired = [
+  ...combinedRequired,
+  ...['desktop', 'phone'].map((project) => ({ name: denialTitle, project })),
+]
+function denialFixture() {
+  const value = combinedFixture()
+  value.stats.expected = 6
+  value.suites[0].specs.push({
+    title: denialTitle,
+    tests: ['desktop', 'phone'].map((projectName) => ({
+      projectName,
+      results: [{ status: 'passed' }],
+    })),
+  })
+  return value
+}
+const inspectDenials = (value) => browserReport(JSON.stringify(value), 6, denialRequired)
+test('Details denial receipt requires all three exact titles on desktop and phone', () => {
+  const result = inspectDenials(denialFixture())
+  assert.equal(result.status, 'passed')
+  assert.deepEqual(
+    result.checks,
+    denialRequired.map(({ name, project }) => ({ name, project, status: 'passed' })),
+  )
+})
+for (const titleIndex of [0, 1, 2]) {
+  for (const projectIndex of [0, 1]) {
+    test(`Details denial receipt rejects missing pair ${titleIndex}/${projectIndex}`, () => {
+      const value = denialFixture()
+      value.suites[0].specs[titleIndex].tests.splice(projectIndex, 1)
+      assert.equal(inspectDenials(value).status, 'failed')
+    })
+  }
+}
+for (const [name, change] of [
+  ['only old pairs', (value) => value.suites[0].specs.pop()],
+  ['only denial pair', (value) => value.suites[0].specs.splice(0, 2)],
+  ['duplicate pair', (value) => (value.suites[0].specs[2].tests[1].projectName = 'desktop')],
+  ['wrong project', (value) => (value.suites[0].specs[2].tests[1].projectName = 'tablet')],
+  ['wrong title', (value) => (value.suites[0].specs[2].title = 'unrelated')],
+  [
+    'extra result',
+    (value) => value.suites[0].specs[2].tests.push(value.suites[0].specs[2].tests[0]),
+  ],
+  [
+    'skipped result',
+    (value) => {
+      value.suites[0].specs[2].tests[1].results[0].status = 'skipped'
+      value.stats.skipped = 1
+    },
+  ],
+  ['flaky result', (value) => (value.stats.flaky = 1)],
+  [
+    'failed result',
+    (value) => {
+      value.suites[0].specs[2].tests[1].results[0].status = 'failed'
+      value.stats.unexpected = 1
+    },
+  ],
+  ['global error', (value) => value.errors.push({ message: 'setup failed' })],
+  ['wrong count', (value) => (value.stats.expected = 4)],
+]) {
+  test(`Details denial receipt rejects ${name}`, () => {
+    const value = denialFixture()
+    change(value)
+    assert.equal(inspectDenials(value).status, 'failed')
+  })
+}

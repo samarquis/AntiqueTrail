@@ -109,10 +109,18 @@ export async function serveDockerProxy(run, upstream) {
         process.platform === 'win32' ? `npipe:////./pipe/${run.projectId}` : `unix://${socket}`,
       DOCKER_CONTEXT: '',
     },
-    close: async () => {
+    close: async ({ signal } = {}) => {
       for (const socket of sockets) socket.destroy()
       server.closeAllConnections()
-      await new Promise((resolve) => server.close(resolve))
+      await new Promise((resolve, reject) => {
+        const abort = () => reject(new Error('Proxy cleanup aborted'))
+        signal?.addEventListener('abort', abort, { once: true })
+        server.close(() => {
+          signal?.removeEventListener('abort', abort)
+          resolve()
+        })
+        if (signal?.aborted) abort()
+      })
     },
   }
 }

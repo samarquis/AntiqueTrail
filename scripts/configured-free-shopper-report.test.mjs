@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   browserReport,
   classifyConfiguredShopperRoute,
+  classifyKeyedFillCallLog,
   projectSafeBrowserFailure,
   recordCleanupFailure,
 } from './configured-free-shopper-report.mjs'
@@ -699,4 +700,207 @@ test('cleanup failure stays separate from the first proof failure', () => {
   assert.equal(cleanupOnly.failedAt, 'cleanup-browser-input')
   assert.equal(cleanupOnly.cleanup, 'failed')
   assert.equal(cleanupOnly.cleanupFailures[0], 'browser-input-removal')
+})
+
+const denialDiagnosticName =
+  'anonymous Details chooser rejects unavailable store and revoked session without writes'
+const savedDiagnosticName =
+  'sibling context, sign-out, and account switch deny private trip reads and writes'
+const detailsDiagnostic = {
+  version: 1,
+  kind: 'details-add',
+  phase: 'hidden-store',
+  requestSeen: true,
+  responseSeen: true,
+  status: 400,
+  denialCode: 'store_stop_not_found',
+}
+const savedDiagnostic = {
+  version: 1,
+  kind: 'saved-load',
+  responseSeen: true,
+  status: 200,
+  rowCount: 0,
+  renderedBranch: 'empty',
+}
+for (const [name, diagnostic] of [
+  [denialDiagnosticName, detailsDiagnostic],
+  [savedDiagnosticName, savedDiagnostic],
+]) {
+  test(`bounded RPC diagnostic survives safe projection for ${diagnostic.kind}`, () => {
+    assert.deepEqual(
+      projectSafeBrowserFailure({ diagnostic }, { name, project: 'phone' }).diagnostic,
+      diagnostic,
+    )
+  })
+  test(`bounded RPC diagnostic drops private fields and unknown enums for ${diagnostic.kind}`, () => {
+    for (const hostile of [
+      { ...diagnostic, token: 'PRIVATE-CANARY' },
+      { ...diagnostic, status: 'PRIVATE-CANARY' },
+      { ...diagnostic, kind: 'PRIVATE-CANARY' },
+      {
+        ...diagnostic,
+        ...(diagnostic.kind === 'details-add'
+          ? { denialCode: 'PRIVATE-CANARY' }
+          : { renderedBranch: 'PRIVATE-CANARY' }),
+      },
+    ]) {
+      const result = projectSafeBrowserFailure({ diagnostic: hostile }, { name, project: 'phone' })
+      assert.equal(result.diagnostic, undefined)
+      assert.equal(JSON.stringify(result).includes('PRIVATE-CANARY'), false)
+    }
+    assert.equal(
+      projectSafeBrowserFailure({ diagnostic }, { name: 'unrelated', project: 'phone' }).diagnostic,
+      undefined,
+    )
+    assert.equal(
+      projectSafeBrowserFailure({ diagnostic }, { name, project: 'private-project' }).diagnostic,
+      undefined,
+    )
+  })
+}
+test('bounded diagnostic annotation is final-result-bound and duplicate annotations are discarded', () => {
+  const annotations = [
+    { type: 'configured-rpc-diagnostic-v1', description: JSON.stringify(detailsDiagnostic) },
+  ]
+  const context = { name: denialDiagnosticName, project: 'desktop', annotations }
+  assert.deepEqual(projectSafeBrowserFailure({}, context).diagnostic, detailsDiagnostic)
+  assert.equal(
+    projectSafeBrowserFailure({}, { ...context, annotations: [...annotations, ...annotations] })
+      .diagnostic,
+    undefined,
+  )
+})
+
+const keyedFillName = 'keyed trip create replays after committed response loss'
+const keyedFillDiagnostic = {
+  version: 1,
+  kind: 'keyed-fill',
+  headingPreviouslyVisible: true,
+  routeClass: 'add-to-trip',
+  callLogState: 'not-visible',
+  requestSeen: true,
+  responseSeen: true,
+  status: 200,
+}
+
+test('keyed fill diagnostic survives both receipt projections without changing failure outcome', () => {
+  for (const project of ['desktop', 'phone']) {
+    const annotations = [
+      { type: 'configured-rpc-diagnostic-v1', description: JSON.stringify(keyedFillDiagnostic) },
+    ]
+    const report = browserReport(
+      JSON.stringify({
+        stats: { expected: 0, unexpected: 1, skipped: 0, flaky: 0 },
+        errors: [],
+        suites: [
+          {
+            specs: [
+              {
+                title: keyedFillName,
+                tests: [
+                  {
+                    projectName: project,
+                    results: [
+                      {
+                        status: 'failed',
+                        annotations,
+                        error: {
+                          message: 'locator.fill: Timeout 15000ms exceeded. PRIVATE',
+                          location: { file: 'configured-free-shopper.spec.ts', line: 513 },
+                        },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      }),
+      1,
+    )
+    assert.equal(report.status, 'failed')
+    const failure = report.checks[0].failure
+    assert.deepEqual(failure.diagnostic, keyedFillDiagnostic)
+    assert.equal(failure.timeout, true)
+    assert.deepEqual(
+      projectSafeBrowserFailure(failure, { name: keyedFillName, project }).diagnostic,
+      keyedFillDiagnostic,
+    )
+    assert.doesNotMatch(JSON.stringify(report), /PRIVATE/)
+  }
+})
+
+test('keyed fill diagnostic rejects extra keys, invalid states and mismatched cases', () => {
+  for (const diagnostic of [
+    { ...keyedFillDiagnostic, raw: 'PRIVATE' },
+    { ...keyedFillDiagnostic, routeClass: 'PRIVATE' },
+    { ...keyedFillDiagnostic, callLogState: 'PRIVATE' },
+    { ...keyedFillDiagnostic, headingPreviouslyVisible: false },
+    { ...keyedFillDiagnostic, requestSeen: false },
+    { ...keyedFillDiagnostic, responseSeen: false },
+    { ...keyedFillDiagnostic, status: 600 },
+    { ...keyedFillDiagnostic, status: 1.5 },
+  ])
+    assert.equal(
+      projectSafeBrowserFailure({ diagnostic }, { name: keyedFillName, project: 'phone' })
+        .diagnostic,
+      undefined,
+    )
+  for (const context of [
+    { name: 'other', project: 'phone' },
+    { name: keyedFillName, project: 'other' },
+  ])
+    assert.equal(
+      projectSafeBrowserFailure({ diagnostic: keyedFillDiagnostic }, context).diagnostic,
+      undefined,
+    )
+  const unknown = {
+    ...keyedFillDiagnostic,
+    routeClass: 'unknown',
+    callLogState: 'unknown',
+    requestSeen: false,
+    responseSeen: false,
+    status: null,
+  }
+  assert.deepEqual(
+    projectSafeBrowserFailure({ diagnostic: unknown }, { name: keyedFillName, project: 'phone' })
+      .diagnostic,
+    unknown,
+  )
+})
+
+test('keyed fill call-log classifier is bounded and keeps only the last exact known marker', () => {
+  const log = (lines) => ({
+    message: 'locator.fill: Timeout 15000ms exceeded.\nCall log:\n' + lines.join('\n'),
+  })
+  assert.equal(
+    classifyKeyedFillCallLog(log(["  - waiting for getByLabel('Trip name', { exact: true })"])),
+    'waiting-for-locator',
+  )
+  for (const [line, state] of [
+    ['  -   element is not visible', 'not-visible'],
+    ['  - element is not enabled', 'not-enabled'],
+    ['  - element is not editable', 'not-editable'],
+    ['  - element was detached from the DOM, retrying', 'detached'],
+  ])
+    assert.equal(classifyKeyedFillCallLog(log([line])), state)
+  assert.equal(
+    classifyKeyedFillCallLog(log(['  - element is not visible', '  - element is not editable'])),
+    'not-editable',
+  )
+  for (const error of [
+    null,
+    {},
+    { message: 'PRIVATE element is not visible' },
+    log(['  - PRIVATE element is not visible']),
+    { message: 'x'.repeat(65537) },
+    {
+      get message() {
+        throw new Error('PRIVATE')
+      },
+    },
+  ])
+    assert.equal(classifyKeyedFillCallLog(error), 'unknown')
 })

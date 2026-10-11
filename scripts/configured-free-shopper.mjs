@@ -6,11 +6,13 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import {
   createLocalService,
+  captureLocalStartupFailure,
   command,
   freePort,
   ROOT,
   stopChild,
 } from './configured-shopper-local.mjs'
+import { projectPrimaryFailure } from './issue-568-private-stop-proof-report.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
 import { browserReport, recordCleanupFailure } from './configured-free-shopper-report.mjs'
 
@@ -229,7 +231,7 @@ try {
                     : detailsTripEntry
                       ? [
                           '--grep',
-                          '(anonymous Details entry cancels sign-in, retains store, and retries one dated stop|anonymous Details sign-in failure preserves store and private data before retry)$',
+                          '(anonymous Details entry cancels sign-in, retains store, and retries one dated stop|anonymous Details sign-in failure preserves store and private data before retry|anonymous Details chooser rejects unavailable store and revoked session without writes)$',
                         ]
                       : []),
       ],
@@ -249,11 +251,13 @@ try {
   } else {
     const results = browserReport(
       fs.readFileSync(resultPath, 'utf8'),
-      sessionSignout || detailsTripEntry
-        ? 4
-        : mediaOnly || partnerRemoval || accountSettings || keyedTripCreate || savedRowTripEntry
-          ? 2
-          : 30,
+      detailsTripEntry
+        ? 6
+        : sessionSignout
+          ? 4
+          : mediaOnly || partnerRemoval || accountSettings || keyedTripCreate || savedRowTripEntry
+            ? 2
+            : 32,
       keyedTripCreate
         ? [
             { name: 'keyed trip create replays after committed response loss', project: 'desktop' },
@@ -268,6 +272,7 @@ try {
             ? [
                 'anonymous Details entry cancels sign-in, retains store, and retries one dated stop',
                 'anonymous Details sign-in failure preserves store and private data before retry',
+                'anonymous Details chooser rejects unavailable store and revoked session without writes',
               ].flatMap((name) => ['desktop', 'phone'].map((project) => ({ name, project })))
             : [],
     )
@@ -281,6 +286,11 @@ try {
 } catch (error) {
   report.status = 'failed'
   report.failedAt ??= report.stage
+  if (report.failedAt === 'local-services')
+    report.startupFailure = projectPrimaryFailure(
+      'local-services',
+      captureLocalStartupFailure(service?.run, error),
+    ).startupFailure
   report.errors.push(redact(error.message))
 } finally {
   await stopChild(server)

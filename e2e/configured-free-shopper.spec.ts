@@ -3,7 +3,11 @@ import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
-import { classifyConfiguredShopperRoute } from '../scripts/configured-free-shopper-report.mjs'
+import {
+  classifyConfiguredShopperRoute,
+  classifyKeyedFillCallLog,
+  projectSafeBrowserFailure,
+} from '../scripts/configured-free-shopper-report.mjs'
 
 const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 'utf8'))
 const service = createLocalService({ resumeDirectory: input.directory })
@@ -73,6 +77,37 @@ async function submitLogin(page: Page, actor = 0) {
   expect(typeof token).toBe('string')
   await expect(page).not.toHaveURL(/\/auth\/sign-in/)
   return token as string
+}
+
+// Best-effort, synchronous projection: no new reads or waits on failure paths.
+function annotateRpcDiagnostic(testInfo: TestInfo, diagnostic: object) {
+  try {
+    const type = 'configured-rpc-diagnostic-v1'
+    if (testInfo.annotations.some((annotation) => annotation.type === type)) return
+    const safe = projectSafeBrowserFailure(
+      { diagnostic },
+      {
+        name: testInfo.title,
+        project: testInfo.project.name,
+      },
+    ).diagnostic
+    if (safe) testInfo.annotations.push({ type, description: JSON.stringify(safe) })
+  } catch {
+    // Annotation failure must never replace the original failure.
+  }
+}
+
+function isDiagnosticRpc(request: import('@playwright/test').Request, path: string) {
+  try {
+    const url = new URL(request.url())
+    return (
+      url.origin === new URL(input.endpoint).origin &&
+      url.pathname === path &&
+      request.method() === 'POST'
+    )
+  } catch {
+    return false
+  }
 }
 
 type RouteObservationCheckpoint =
@@ -469,80 +504,120 @@ test('keyed trip create replays after committed response loss', async ({
     }
   }
 
-  await login(page, 0, `/trips/new?addStoreId=${A}&returnTo=%2Fsaved`)
-  await assertWithRouteObservation(page, testInfo, 'keyed-return-heading', undefined, () =>
-    expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible(),
-  )
-  await page.route('**/rest/v1/rpc/create_trip', routeHandler)
-  page.on('request', onRequest)
+  // Observe only the first list request after this login starts; later responses cannot overwrite it.
+  let listRequest: import('@playwright/test').Request | undefined
+  let listStatus: number | null = null
+  const observeListRequest = (request: import('@playwright/test').Request) => {
+    if (!listRequest && isDiagnosticRpc(request, '/rest/v1/rpc/list_trips')) listRequest = request
+  }
+  const observeListResponse = (response: import('@playwright/test').Response) => {
+    if (listStatus === null && response.request() === listRequest) listStatus = response.status()
+  }
+  page.on('request', observeListRequest)
+  page.on('response', observeListResponse)
   try {
-    await page.getByLabel('Trip name', { exact: true }).fill(name)
-    await page.getByLabel('Date', { exact: true }).fill(localDate)
-    await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
-    await withTimeout(firstHandled, 'first create handler timed out')
-    expect(firstOutcome, firstFailureStage).toBe('committed-response-dropped')
-    await expect(page.getByRole('alert')).toContainText(
-      "We couldn't update this trip. Please try again.",
+    await login(page, 0, `/trips/new?addStoreId=${A}&returnTo=%2Fsaved`)
+    await assertWithRouteObservation(page, testInfo, 'keyed-return-heading', undefined, () =>
+      expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible(),
     )
-    expect(createAttempts).toBe(1)
-    expect(stopAttempts).toBe(0)
-    await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(name)
-    await expect(page.getByLabel('Trip name', { exact: true })).toBeDisabled()
-    await expect(page.getByLabel('Date', { exact: true })).toHaveValue(localDate)
-    await expect(page.getByLabel('Date', { exact: true })).toBeDisabled()
-    const committed = await proof(firstTripId)
-    expect(committed).toMatchObject({
-      id: firstTripId,
-      owner,
-      name,
-      date: localDate,
-      receiptCount: 1,
-      creatorCount: 1,
-      stops: [],
-      ownerTripCount: tripBaseline + 1,
-    })
-
-    await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
-    await withTimeout(secondHandled, 'retry create handler timed out')
-    expect(secondOutcome, secondFailureStage).toBe('same-trip-response-fulfilled')
-    expect(createAttempts).toBe(2)
-    await expect(page.getByText(`Added to ${name}`, { exact: true })).toBeVisible()
-    await page.getByRole('link', { name: 'View Trip', exact: true }).click()
-    await expect(page.getByText(name, { exact: true })).toBeVisible()
-    await expect(page.getByText('Trip date: 2030-10-12', { exact: true })).toBeVisible()
-    expect(await read(firstTripId)).toMatchObject({ name, date: localDate, stops: [{ store: A }] })
-    expect(stopAttempts).toBe(1)
-    const finalState = await proof(firstTripId)
-    expect(finalState).toMatchObject({
-      id: firstTripId,
-      owner,
-      name,
-      date: localDate,
-      receiptCount: 1,
-      creatorCount: 1,
-      stops: [{ store: A }],
-      ownerTripCount: tripBaseline + 1,
-    })
-
-    const otherContext = await browser.newContext({ baseURL: input.origin })
+    await page.route('**/rest/v1/rpc/create_trip', routeHandler)
+    page.on('request', onRequest)
     try {
-      const otherPage = await otherContext.newPage()
-      const otherToken = await login(otherPage, 1, '/trips')
-      let denialProved = false
       try {
-        await rpc(otherToken, 'get_trip', { trip_id: firstTripId })
-      } catch (error) {
-        denialProved = error instanceof Error && /\bauthorization_lost\b/.test(error.message)
+        await page.getByLabel('Trip name', { exact: true }).fill(name)
+      } catch (originalError) {
+        // No new browser reads, waits or RPCs on this failure path. Rethrow the identical error.
+        try {
+          const route = captureRouteObservation(page, 'keyed-return-heading', undefined)
+          annotateRpcDiagnostic(testInfo, {
+            version: 1,
+            kind: 'keyed-fill',
+            headingPreviouslyVisible: true,
+            routeClass: 'routeClass' in route ? route.routeClass : 'unknown',
+            callLogState: classifyKeyedFillCallLog(originalError),
+            requestSeen: listRequest !== undefined,
+            responseSeen: listStatus !== null,
+            status: listStatus,
+          })
+        } catch {
+          /* Diagnostic failure must not replace the fill error. */
+        }
+        throw originalError
       }
-      expect(denialProved).toBe(true)
-      expect(await proof(firstTripId)).toMatchObject(finalState)
-      expect(await ownerTripCount()).toBe(tripBaseline + 1)
+      await page.getByLabel('Date', { exact: true }).fill(localDate)
+      await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+      await withTimeout(firstHandled, 'first create handler timed out')
+      expect(firstOutcome, firstFailureStage).toBe('committed-response-dropped')
+      await expect(page.getByRole('alert')).toContainText(
+        "We couldn't update this trip. Please try again.",
+      )
+      expect(createAttempts).toBe(1)
+      expect(stopAttempts).toBe(0)
+      await expect(page.getByLabel('Trip name', { exact: true })).toHaveValue(name)
+      await expect(page.getByLabel('Trip name', { exact: true })).toBeDisabled()
+      await expect(page.getByLabel('Date', { exact: true })).toHaveValue(localDate)
+      await expect(page.getByLabel('Date', { exact: true })).toBeDisabled()
+      const committed = await proof(firstTripId)
+      expect(committed).toMatchObject({
+        id: firstTripId,
+        owner,
+        name,
+        date: localDate,
+        receiptCount: 1,
+        creatorCount: 1,
+        stops: [],
+        ownerTripCount: tripBaseline + 1,
+      })
+
+      await page.getByRole('button', { name: 'Create trip and add store', exact: true }).click()
+      await withTimeout(secondHandled, 'retry create handler timed out')
+      expect(secondOutcome, secondFailureStage).toBe('same-trip-response-fulfilled')
+      expect(createAttempts).toBe(2)
+      await expect(page.getByText(`Added to ${name}`, { exact: true })).toBeVisible()
+      await page.getByRole('link', { name: 'View Trip', exact: true }).click()
+      await expect(page.getByText(name, { exact: true })).toBeVisible()
+      await expect(page.getByText('Trip date: 2030-10-12', { exact: true })).toBeVisible()
+      expect(await read(firstTripId)).toMatchObject({
+        name,
+        date: localDate,
+        stops: [{ store: A }],
+      })
+      expect(stopAttempts).toBe(1)
+      const finalState = await proof(firstTripId)
+      expect(finalState).toMatchObject({
+        id: firstTripId,
+        owner,
+        name,
+        date: localDate,
+        receiptCount: 1,
+        creatorCount: 1,
+        stops: [{ store: A }],
+        ownerTripCount: tripBaseline + 1,
+      })
+
+      const otherContext = await browser.newContext({ baseURL: input.origin })
+      try {
+        const otherPage = await otherContext.newPage()
+        const otherToken = await login(otherPage, 1, '/trips')
+        let denialProved = false
+        try {
+          await rpc(otherToken, 'get_trip', { trip_id: firstTripId })
+        } catch (error) {
+          denialProved = error instanceof Error && /\bauthorization_lost\b/.test(error.message)
+        }
+        expect(denialProved).toBe(true)
+        expect(await proof(firstTripId)).toMatchObject(finalState)
+        expect(await ownerTripCount()).toBe(tripBaseline + 1)
+      } finally {
+        await otherContext.close()
+      }
     } finally {
-      await otherContext.close()
+      page.off('request', onRequest)
+      await page.unroute('**/rest/v1/rpc/create_trip', routeHandler)
     }
   } finally {
-    page.off('request', onRequest)
-    await page.unroute('**/rest/v1/rpc/create_trip', routeHandler)
+    page.off('request', observeListRequest)
+    page.off('response', observeListResponse)
   }
 })
 
@@ -616,9 +691,44 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   const sibling = await browser.newContext({ baseURL: input.origin })
   try {
     const other = await sibling.newPage()
-    const token = await login(other, 1, '/saved')
-    await expect(other.getByText('You have no saved stores yet.', { exact: true })).toBeVisible()
-    await expect(other.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toHaveCount(0)
+    const savedDiagnostic = {
+      version: 1,
+      kind: 'saved-load',
+      responseSeen: false,
+      status: null as number | null,
+      rowCount: null,
+      renderedBranch: 'unknown',
+    }
+    const recordSavedResponse = (response: import('@playwright/test').Response) => {
+      try {
+        if (!isDiagnosticRpc(response.request(), '/rest/v1/rpc/shopper_list_saved')) return
+        savedDiagnostic.responseSeen = true
+        savedDiagnostic.status = response.status()
+      } catch {
+        /* Passive observation must not affect the test. */
+      }
+    }
+    other.on('response', recordSavedResponse)
+    const token = await (async () => {
+      try {
+        const token = await login(other, 1, '/saved')
+        try {
+          await expect(
+            other.getByText('You have no saved stores yet.', { exact: true }),
+          ).toBeVisible()
+          savedDiagnostic.renderedBranch = 'empty'
+          await expect(
+            other.getByRole('link', { name: 'Clockwork Cabinet', exact: true }),
+          ).toHaveCount(0)
+        } catch (originalError) {
+          annotateRpcDiagnostic(testInfo, savedDiagnostic)
+          throw originalError
+        }
+        return token
+      } finally {
+        other.off('response', recordSavedResponse)
+      }
+    })()
     await other.goto(`/trips/${id}/plan`)
     await expect(
       other.getByRole('heading', { name: 'Trip unavailable', exact: true }),
@@ -1421,4 +1531,226 @@ test('anonymous Details sign-in failure preserves store and private data before 
   await expect(page).toHaveURL(`${input.origin}${target}`)
   await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
   expect(await privateState()).toEqual(before)
+})
+
+test('anonymous Details chooser rejects unavailable store and revoked session without writes', async ({
+  page,
+}, testInfo) => {
+  const id = crypto.randomUUID()
+  const name = `Eligibility trip ${crypto.randomUUID()}`
+  const snapshot = async () =>
+    JSON.parse(
+      (
+        await service.sql(
+          `select jsonb_build_object('trip',(select to_jsonb(t) from trip_private.trips t where trip_id='${id}'),'stops',(select coalesce(jsonb_agg(to_jsonb(s) order by s.stop_id),'[]'::jsonb) from trip_private.trip_stops s where trip_id='${id}'),'saved',(select coalesce(jsonb_agg(to_jsonb(s) order by s.store_id),'[]'::jsonb) from shopper_private.saved_stores s where user_id='${owner}'));`,
+        )
+      ).trim(),
+    )
+  const publication = async () =>
+    (await service.sql(`select publication_state from app_public.stores where id='${A}';`)).trim()
+  const originalPublication = await publication()
+  expect(originalPublication).toBe('active')
+  await service.sql(
+    `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','${name}','2030-10-12'); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator'); insert into trip_private.trip_stops(trip_id,kind,store_id,position,priority,planned_dwell_minutes) values ('${id}','store','${B}',0,'prefer',60);`,
+  )
+  // Delay only revocation notification; database authority and RPC responses remain real.
+  // Install before login to cover validation requests already in flight at revocation.
+  // This is the submit-before-notification schedule, not the early-signout schedule.
+  const validationUrl = new URL('/rest/v1/rpc/current_session_is_active', input.endpoint).href
+  let holdValidation = false
+  let releaseValidation!: () => void
+  const validationGate = new Promise<void>((resolve) => {
+    releaseValidation = resolve
+  })
+  const validationWork = new Set<Promise<void>>()
+  let validationFailure: unknown
+  const validationRoute = async (route: import('@playwright/test').Route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    const work = (async () => {
+      try {
+        const response = await route.fetch()
+        // Check after fetch so requests begun before revocation also participate.
+        if (holdValidation) await validationGate
+        await route.fulfill({ response })
+      } catch (error) {
+        validationFailure ??= error
+        await route.abort().catch(() => undefined)
+      }
+    })()
+    validationWork.add(work)
+    try {
+      await work
+    } finally {
+      validationWork.delete(work)
+    }
+  }
+  let primaryFailure: unknown
+  let restorationFailure: unknown
+  try {
+    await page.route(validationUrl, validationRoute)
+    const target = `/trips/new?addStoreId=${A}`
+    await page.goto('/stores')
+    await page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first().click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Clockwork Cabinet' })).toBeVisible()
+    const action = page.getByRole('link', { name: 'Add to Trip', exact: true })
+    await expect(action).toHaveAttribute('href', target)
+    await action.click()
+    await expect(page).toHaveURL(
+      `${input.origin}/auth/sign-in?returnTo=${encodeURIComponent(target)}`,
+    )
+    const token = await submitLogin(page, 0)
+    const sessionId = uuid(
+      JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString()).session_id,
+    )
+    await expect(page).toHaveURL(`${input.origin}${target}`)
+    await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toBeVisible()
+    const add = page
+      .getByRole('list', { name: 'Existing trips', exact: true })
+      .getByRole('button', { name: `Add to ${name}`, exact: true })
+    await expect(add).toBeEnabled()
+    const before = await snapshot()
+    expect(before.trip.state).toBe('draft')
+    expect(before.stops.map((stop: { store_id: string }) => stop.store_id)).toEqual([B])
+    expect(
+      (
+        await service.sql(
+          `select count(*) from app_public.stores s join trip_private.trips t on t.area_id=s.area_id where t.trip_id='${id}' and s.id='${A}' and s.synthetic and s.audience='synthetic' and s.publication_state='active';`,
+        )
+      ).trim(),
+    ).toBe('1')
+    const sessionState = async () =>
+      (
+        await service.sql(
+          `select state from app_private.active_sessions where session_id='${sessionId}' and user_id='${owner}';`,
+        )
+      ).trim()
+    const denyAdd = async (message: string, phase: 'hidden-store' | 'revoked-session') => {
+      const diagnostic = {
+        version: 1,
+        kind: 'details-add',
+        phase,
+        requestSeen: false,
+        responseSeen: false,
+        status: null as number | null,
+        denialCode: null as string | null,
+      }
+      const recordRequest = (request: import('@playwright/test').Request) => {
+        if (isDiagnosticRpc(request, '/rest/v1/rpc/add_trip_store_stop'))
+          diagnostic.requestSeen = true
+      }
+      const recordResponse = (response: import('@playwright/test').Response) => {
+        try {
+          // The original waiter selects the first matching response for this phase.
+          if (diagnostic.responseSeen) return
+          if (!isDiagnosticRpc(response.request(), '/rest/v1/rpc/add_trip_store_stop')) return
+          diagnostic.requestSeen = true
+          diagnostic.responseSeen = true
+          diagnostic.status = response.status()
+        } catch {
+          /* Passive observation must not affect the test. */
+        }
+      }
+      page.on('request', recordRequest)
+      page.on('response', recordResponse)
+      try {
+        const response = page.waitForResponse((result) => {
+          const url = new URL(result.url())
+          return (
+            url.origin === new URL(input.endpoint).origin &&
+            url.pathname === '/rest/v1/rpc/add_trip_store_stop' &&
+            result.request().method() === 'POST'
+          )
+        })
+        await add.click()
+        const denied = await response
+        expect(denied.request().postDataJSON()).toEqual({ trip_id: id, store_id: A })
+        expect(denied.status()).toBe(400)
+        const error = await denied.json()
+        // Only classify a body that the original assertion path already read.
+        if (
+          error &&
+          typeof error === 'object' &&
+          ['store_stop_not_found', 'authorization_lost'].includes(error.message)
+        )
+          diagnostic.denialCode = error.message
+        expect({ code: error.code, message: error.message }).toEqual({ code: 'P0001', message })
+        await expect(
+          page
+            .getByRole('alert')
+            .getByText("We couldn't update this trip. Please try again.", { exact: true }),
+        ).toBeVisible()
+        await expect(page).toHaveURL(`${input.origin}${target}`)
+        await expect(add).toBeEnabled()
+        const after = await snapshot()
+        expect(after).toEqual(before)
+        expect(after.trip.version).toBe(before.trip.version)
+      } catch (originalError) {
+        annotateRpcDiagnostic(testInfo, diagnostic)
+        throw originalError
+      } finally {
+        page.off('request', recordRequest)
+        page.off('response', recordResponse)
+      }
+    }
+    await service.sql(`update app_public.stores set publication_state='hidden' where id='${A}';`)
+    expect(await publication()).toBe('hidden')
+    expect(await sessionState()).toBe('active')
+    await denyAdd('store_stop_not_found', 'hidden-store')
+
+    await service.sql(`update app_public.stores set publication_state='active' where id='${A}';`)
+    expect(await publication()).toBe('active')
+    expect(await snapshot()).toEqual(before)
+    holdValidation = true
+    await service.sql(
+      `update app_private.active_sessions set state='revoked',revoked_at=now(),revocation_reason='test_add_denial' where session_id='${sessionId}' and user_id='${owner}' and state='active';`,
+    )
+    expect(await sessionState()).toBe('revoked')
+    expect(await publication()).toBe('active')
+    await denyAdd('authorization_lost', 'revoked-session')
+    // Deliver the unmodified validation response, then prove authority withdrawal.
+    holdValidation = false
+    releaseValidation()
+    await expect(page).toHaveURL(
+      input.origin + '/auth/sign-in?returnTo=' + encodeURIComponent(target),
+    )
+    await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toHaveCount(0)
+    await expect(add).toHaveCount(0)
+    expect(await sessionState()).toBe('revoked')
+    expect(await publication()).toBe('active')
+    expect(await snapshot()).toEqual(before)
+  } catch (error) {
+    primaryFailure = error
+  } finally {
+    // Release on failure too; leave no held validation response or handler behind.
+    holdValidation = false
+    releaseValidation()
+    try {
+      await page.unroute(validationUrl, validationRoute)
+      await Promise.allSettled([...validationWork])
+      if (validationFailure)
+        primaryFailure = primaryFailure
+          ? new AggregateError(
+              [primaryFailure, validationFailure],
+              'Denial proof and validation delivery failed',
+            )
+          : validationFailure
+    } catch (error) {
+      primaryFailure = primaryFailure
+        ? new AggregateError([primaryFailure, error], 'Denial proof and validation delivery failed')
+        : error
+    }
+    try {
+      await service.sql(`update app_public.stores set publication_state='active' where id='${A}';`)
+      expect(await publication()).toBe(originalPublication)
+    } catch (cleanupFailure) {
+      restorationFailure = cleanupFailure
+    }
+  }
+  if (primaryFailure && restorationFailure)
+    throw new AggregateError(
+      [primaryFailure, restorationFailure],
+      'Denial proof failed and store restoration failed',
+    )
+  if (primaryFailure) throw primaryFailure
+  if (restorationFailure) throw restorationFailure
 })

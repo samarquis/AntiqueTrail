@@ -17,16 +17,26 @@ on:
       - 'package-lock.json'
       - '.nvmrc'
   workflow_dispatch:
+    inputs:
+      runtime_diagnostic:
+        description: Collect one CI-only runtime lifecycle diagnostic
+        type: boolean
+        default: false
+      diagnostic_sha:
+        description: Full reviewed source SHA required for the diagnostic
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: keyed-trip-create-${{ github.ref }}
-  cancel-in-progress: true
+  group: keyed-trip-create-${{ github.ref }}${{ inputs.runtime_diagnostic && '-runtime-diagnostic' || '' }}
+  cancel-in-progress: ${{ !inputs.runtime_diagnostic }}
 
 jobs:
   keyed-trip-create-proof:
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.runtime_diagnostic) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -60,6 +70,7 @@ jobs:
           node --input-type=module <<'JS'
           import fs from 'node:fs'
           import { projectSafeBrowserFailure } from './scripts/configured-free-shopper-report.mjs'
+          const { projectPrimaryFailure } = await import('./scripts/issue-568-private-stop-proof-report.mjs')
           const roots = fs.existsSync('artifacts') ? fs.readdirSync('artifacts') : []
           const reports = roots.filter(name => name.startsWith('configured-shopper-'))
             .map(name => `artifacts/${name}/report.json`).filter(file => fs.existsSync(file))
@@ -103,6 +114,7 @@ jobs:
             cleanupFailures: Array.isArray(report.cleanupFailures)
               ? report.cleanupFailures.filter(value => ['browser-input-removal', 'service-cleanup'].includes(value))
               : [],
+            startupFailure: projectPrimaryFailure(report.failedAt, report.startupFailure).startupFailure,
             stats: counts,
             checks: safeChecks,
           }
@@ -126,4 +138,34 @@ jobs:
         with:
           name: keyed-trip-create-receipt
           path: artifacts/keyed-trip-create-receipt.json
+          if-no-files-found: error
+
+  runtime-lifecycle-diagnostic:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.runtime_diagnostic }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact diagnostic candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Collect one runtime lifecycle diagnostic
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.diagnostic_sha }}
+          RUNTIME_DIAGNOSTIC: 'true'
+        run: node scripts/configured-runtime-lifecycle-proof.mjs
+      - name: Upload bounded lifecycle receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: configured-runtime-lifecycle
+          path: ${{ runner.temp }}/configured-runtime-lifecycle.json
           if-no-files-found: error

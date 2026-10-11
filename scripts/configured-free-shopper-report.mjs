@@ -127,6 +127,171 @@ function observationFromAnnotations(annotations, name, project) {
   return routeObservationFor(matching[0].description, name, project)
 }
 
+// Historical Playwright call-log markers, not a live DOM snapshot. Never emit source text.
+export function classifyKeyedFillCallLog(error) {
+  try {
+    const message = error?.message
+    if (
+      typeof message !== 'string' ||
+      message.length > 65536 ||
+      !message.startsWith('locator.fill:')
+    )
+      return 'unknown'
+    const callLog = message.split('\nCall log:\n')
+    if (callLog.length !== 2) return 'unknown'
+    let state = 'unknown'
+    const markers = new Map([
+      ["waiting for getByLabel('Trip name', { exact: true })", 'waiting-for-locator'],
+      ['element is not visible', 'not-visible'],
+      ['element is not enabled', 'not-enabled'],
+      ['element is not editable', 'not-editable'],
+      ['element was detached from the DOM, retrying', 'detached'],
+    ])
+    for (const line of callLog[1].split('\n')) {
+      const match = line.match(/^\s*-\s+(.+)$/)
+      if (match && markers.has(match[1])) state = markers.get(match[1])
+    }
+    return state
+  } catch {
+    return 'unknown'
+  }
+}
+
+function rpcDiagnosticFor(value, name, project) {
+  if (!['desktop', 'phone'].includes(project)) return undefined
+  if (typeof value === 'string') {
+    if (Buffer.byteLength(value, 'utf8') > 1024) return undefined
+    try {
+      value = JSON.parse(value)
+    } catch {
+      return undefined
+    }
+  }
+  if (!isRecord(value) || value.version !== 1) return undefined
+  const statusValid =
+    value.status === null ||
+    (Number.isInteger(value.status) && value.status >= 100 && value.status <= 599)
+  if (
+    !statusValid ||
+    typeof value.responseSeen !== 'boolean' ||
+    (!value.responseSeen && value.status !== null)
+  )
+    return undefined
+  if (
+    name === 'keyed trip create replays after committed response loss' &&
+    value.kind === 'keyed-fill'
+  ) {
+    if (
+      !hasExactKeys(value, [
+        'version',
+        'kind',
+        'headingPreviouslyVisible',
+        'routeClass',
+        'callLogState',
+        'requestSeen',
+        'responseSeen',
+        'status',
+      ]) ||
+      value.headingPreviouslyVisible !== true ||
+      !['sign-in', 'add-to-trip', 'trip-plan', 'other', 'unknown'].includes(value.routeClass) ||
+      ![
+        'unknown',
+        'waiting-for-locator',
+        'not-visible',
+        'not-enabled',
+        'not-editable',
+        'detached',
+      ].includes(value.callLogState) ||
+      typeof value.requestSeen !== 'boolean' ||
+      (value.responseSeen && !value.requestSeen)
+    )
+      return undefined
+    return {
+      version: 1,
+      kind: 'keyed-fill',
+      headingPreviouslyVisible: true,
+      routeClass: value.routeClass,
+      callLogState: value.callLogState,
+      requestSeen: value.requestSeen,
+      responseSeen: value.responseSeen,
+      status: value.status,
+    }
+  }
+  if (
+    name ===
+      'anonymous Details chooser rejects unavailable store and revoked session without writes' &&
+    value.kind === 'details-add'
+  ) {
+    if (
+      !hasExactKeys(value, [
+        'version',
+        'kind',
+        'phase',
+        'requestSeen',
+        'responseSeen',
+        'status',
+        'denialCode',
+      ]) ||
+      !['hidden-store', 'revoked-session'].includes(value.phase) ||
+      typeof value.requestSeen !== 'boolean' ||
+      (value.responseSeen && !value.requestSeen) ||
+      ![null, 'store_stop_not_found', 'authorization_lost'].includes(value.denialCode) ||
+      (!value.responseSeen && value.denialCode !== null)
+    )
+      return undefined
+    return {
+      version: 1,
+      kind: 'details-add',
+      phase: value.phase,
+      requestSeen: value.requestSeen,
+      responseSeen: value.responseSeen,
+      status: value.status,
+      denialCode: value.denialCode,
+    }
+  }
+  if (
+    name === 'sibling context, sign-out, and account switch deny private trip reads and writes' &&
+    value.kind === 'saved-load'
+  ) {
+    if (
+      !hasExactKeys(value, [
+        'version',
+        'kind',
+        'responseSeen',
+        'status',
+        'rowCount',
+        'renderedBranch',
+      ]) ||
+      !(
+        value.rowCount === null ||
+        (Number.isSafeInteger(value.rowCount) && value.rowCount >= 0 && value.rowCount <= 10000)
+      ) ||
+      (!value.responseSeen && value.rowCount !== null) ||
+      !['loading', 'unavailable', 'empty', 'list', 'unknown'].includes(value.renderedBranch)
+    )
+      return undefined
+    return {
+      version: 1,
+      kind: 'saved-load',
+      responseSeen: value.responseSeen,
+      status: value.status,
+      rowCount: value.rowCount,
+      renderedBranch: value.renderedBranch,
+    }
+  }
+  return undefined
+}
+
+function rpcDiagnosticFromAnnotations(annotations, name, project) {
+  const matches = annotations.filter(
+    (value) => isRecord(value) && value.type === 'configured-rpc-diagnostic-v1',
+  )
+  return matches.length === 1 &&
+    hasExactKeys(matches[0], ['type', 'description']) &&
+    typeof matches[0].description === 'string'
+    ? rpcDiagnosticFor(matches[0].description, name, project)
+    : undefined
+}
 function leadingAssertion(message) {
   const firstLine = message.split(/\r?\n/, 1)[0].replace(/^\s*(?:Error:\s*)?/, '')
   const match = firstLine.match(
@@ -166,7 +331,11 @@ export function projectSafeBrowserFailure(failure, { name, project, annotations 
     if (assertion && assertion !== expectedAssertion) observation = undefined
     else assertion ??= expectedAssertion
   }
+  const diagnostic = Array.isArray(annotations)
+    ? rpcDiagnosticFromAnnotations(annotations, name, project)
+    : rpcDiagnosticFor(failure?.diagnostic, name, project)
   return {
+    ...(diagnostic ? { diagnostic } : {}),
     ...(sourceLine ? { sourceLine } : {}),
     ...(assertion ? { assertion } : {}),
     timeout: failure?.timeout === true,

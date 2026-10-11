@@ -1,3 +1,5 @@
+import { projectServingDiagnostic } from './configured-shopper-serving-diagnostic.mjs'
+
 const stages = new Set([
   'preflight',
   'local-services',
@@ -82,6 +84,7 @@ export function projectPrimaryFailure(stage, startupFailure) {
   const primaryFailureStage = stages.has(stage) ? stage : 'cleanup'
   if (primaryFailureStage !== 'local-services') return { primaryFailureStage, startupFailure: null }
   const value = startupFailure ?? {}
+  const servingDiagnostic = projectServingDiagnostic(value.servingDiagnostic)
   const category = failureCategories.has(value.category) ? value.category : 'unknown'
   const exitCode =
     category === 'command_exit' &&
@@ -102,6 +105,7 @@ export function projectPrimaryFailure(stage, startupFailure) {
       safeErrorCode: errorCodes.has(value.safeErrorCode) ? value.safeErrorCode : null,
       transportCode: transportCodes.has(value.transportCode) ? value.transportCode : null,
       commandExitCode: exitCode,
+      ...(servingDiagnostic ? { servingDiagnostic } : {}),
     },
   }
 }
