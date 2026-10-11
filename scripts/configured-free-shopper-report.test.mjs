@@ -700,3 +700,73 @@ test('cleanup failure stays separate from the first proof failure', () => {
   assert.equal(cleanupOnly.cleanup, 'failed')
   assert.equal(cleanupOnly.cleanupFailures[0], 'browser-input-removal')
 })
+
+const denialDiagnosticName =
+  'anonymous Details chooser rejects unavailable store and revoked session without writes'
+const savedDiagnosticName =
+  'sibling context, sign-out, and account switch deny private trip reads and writes'
+const detailsDiagnostic = {
+  version: 1,
+  kind: 'details-add',
+  phase: 'hidden-store',
+  requestSeen: true,
+  responseSeen: true,
+  status: 400,
+  denialCode: 'store_stop_not_found',
+}
+const savedDiagnostic = {
+  version: 1,
+  kind: 'saved-load',
+  responseSeen: true,
+  status: 200,
+  rowCount: 0,
+  renderedBranch: 'empty',
+}
+for (const [name, diagnostic] of [
+  [denialDiagnosticName, detailsDiagnostic],
+  [savedDiagnosticName, savedDiagnostic],
+]) {
+  test(`bounded RPC diagnostic survives safe projection for ${diagnostic.kind}`, () => {
+    assert.deepEqual(
+      projectSafeBrowserFailure({ diagnostic }, { name, project: 'phone' }).diagnostic,
+      diagnostic,
+    )
+  })
+  test(`bounded RPC diagnostic drops private fields and unknown enums for ${diagnostic.kind}`, () => {
+    for (const hostile of [
+      { ...diagnostic, token: 'PRIVATE-CANARY' },
+      { ...diagnostic, status: 'PRIVATE-CANARY' },
+      { ...diagnostic, kind: 'PRIVATE-CANARY' },
+      {
+        ...diagnostic,
+        ...(diagnostic.kind === 'details-add'
+          ? { denialCode: 'PRIVATE-CANARY' }
+          : { renderedBranch: 'PRIVATE-CANARY' }),
+      },
+    ]) {
+      const result = projectSafeBrowserFailure({ diagnostic: hostile }, { name, project: 'phone' })
+      assert.equal(result.diagnostic, undefined)
+      assert.equal(JSON.stringify(result).includes('PRIVATE-CANARY'), false)
+    }
+    assert.equal(
+      projectSafeBrowserFailure({ diagnostic }, { name: 'unrelated', project: 'phone' }).diagnostic,
+      undefined,
+    )
+    assert.equal(
+      projectSafeBrowserFailure({ diagnostic }, { name, project: 'private-project' }).diagnostic,
+      undefined,
+    )
+  })
+}
+test('bounded diagnostic annotation is final-result-bound and duplicate annotations are discarded', () => {
+  const annotations = [
+    { type: 'configured-rpc-diagnostic-v1', description: JSON.stringify(detailsDiagnostic) },
+  ]
+  const context = { name: denialDiagnosticName, project: 'desktop', annotations }
+  assert.deepEqual(projectSafeBrowserFailure({}, context).diagnostic, detailsDiagnostic)
+  assert.equal(
+    projectSafeBrowserFailure({}, { ...context, annotations: [...annotations, ...annotations] })
+      .diagnostic,
+    undefined,
+  )
+})
