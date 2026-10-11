@@ -1553,9 +1553,39 @@ test('anonymous Details chooser rejects unavailable store and revoked session wi
   await service.sql(
     `insert into trip_private.trips(trip_id,owner_id,area_id,name,local_date) values ('${id}','${owner}','00000000-0000-4000-8000-000000000001','${name}','2030-10-12'); insert into trip_private.trip_participants(trip_id,user_id,participant_role) values ('${id}','${owner}','creator'); insert into trip_private.trip_stops(trip_id,kind,store_id,position,priority,planned_dwell_minutes) values ('${id}','store','${B}',0,'prefer',60);`,
   )
+  // Delay only revocation notification; database authority and RPC responses remain real.
+  // Install before login to cover validation requests already in flight at revocation.
+  // This is the submit-before-notification schedule, not the early-signout schedule.
+  const validationUrl = new URL('/rest/v1/rpc/current_session_is_active', input.endpoint).href
+  let holdValidation = false
+  let releaseValidation!: () => void
+  const validationGate = new Promise<void>((resolve) => {
+    releaseValidation = resolve
+  })
+  const validationWork = new Set<Promise<void>>()
+  let validationFailure: unknown
+  const validationRoute = async (route: import('@playwright/test').Route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    const work = (async () => {
+      const response = await route.fetch()
+      // Check after fetch so requests begun before revocation also participate.
+      if (holdValidation) await validationGate
+      await route.fulfill({ response })
+    })()
+    validationWork.add(work)
+    try {
+      await work
+    } catch (error) {
+      validationFailure ??= error
+      await route.abort().catch(() => undefined)
+    } finally {
+      validationWork.delete(work)
+    }
+  }
   let primaryFailure: unknown
   let restorationFailure: unknown
   try {
+    await page.route(validationUrl, validationRoute)
     const target = `/trips/new?addStoreId=${A}`
     await page.goto('/stores')
     await page.getByRole('link', { name: 'Clockwork Cabinet', exact: true }).first().click()
@@ -1668,15 +1698,45 @@ test('anonymous Details chooser rejects unavailable store and revoked session wi
     await service.sql(`update app_public.stores set publication_state='active' where id='${A}';`)
     expect(await publication()).toBe('active')
     expect(await snapshot()).toEqual(before)
+    holdValidation = true
     await service.sql(
       `update app_private.active_sessions set state='revoked',revoked_at=now(),revocation_reason='test_add_denial' where session_id='${sessionId}' and user_id='${owner}' and state='active';`,
     )
     expect(await sessionState()).toBe('revoked')
     expect(await publication()).toBe('active')
     await denyAdd('authorization_lost', 'revoked-session')
+    // Deliver the unmodified validation response, then prove authority withdrawal.
+    holdValidation = false
+    releaseValidation()
+    await expect(page).toHaveURL(
+      input.origin + '/auth/sign-in?returnTo=' + encodeURIComponent(target),
+    )
+    await expect(page.getByRole('heading', { name: 'Add to Trip', exact: true })).toHaveCount(0)
+    await expect(add).toHaveCount(0)
+    expect(await sessionState()).toBe('revoked')
+    expect(await publication()).toBe('active')
+    expect(await snapshot()).toEqual(before)
   } catch (error) {
     primaryFailure = error
   } finally {
+    // Release on failure too; leave no held validation response or handler behind.
+    holdValidation = false
+    releaseValidation()
+    try {
+      await page.unroute(validationUrl, validationRoute)
+      await Promise.allSettled([...validationWork])
+      if (validationFailure)
+        primaryFailure = primaryFailure
+          ? new AggregateError(
+              [primaryFailure, validationFailure],
+              'Denial proof and validation delivery failed',
+            )
+          : validationFailure
+    } catch (error) {
+      primaryFailure = primaryFailure
+        ? new AggregateError([primaryFailure, error], 'Denial proof and validation delivery failed')
+        : error
+    }
     try {
       await service.sql(`update app_public.stores set publication_state='active' where id='${A}';`)
       expect(await publication()).toBe(originalPublication)
