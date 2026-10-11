@@ -642,6 +642,7 @@ export function createLocalService({
   createTestUsers = true,
   includeServiceRoleKey = false,
   partnerEnvironment,
+  onServingLifecycle,
 } = {}) {
   if (browserOrigin && !/^http:\/\/127\.0\.0\.1:[0-9]+$/.test(browserOrigin))
     throw new Error('Browser origin must use literal loopback')
@@ -966,6 +967,17 @@ export function createLocalService({
         env: proxy.env,
       }),
     )
+    if (typeof onServingLifecycle === 'function') {
+      const observe = (event, exitCode = null, signal = null) => {
+        try {
+          onServingLifecycle({ event, exitCode, signal })
+        } catch {
+          /* Observer cannot affect runtime. */
+        }
+      }
+      serving.once('spawn', () => observe('spawn'))
+      serving.once('exit', (code, signal) => observe('exit', code, signal))
+    }
     serving.on('error', () => {})
     serving.stderr.on('data', servingObserver.observe)
     serving.stderr.on('end', servingObserver.finish)
