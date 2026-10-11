@@ -60,6 +60,7 @@ jobs:
           node --input-type=module <<'JS'
           import fs from 'node:fs'
           import { projectSafeBrowserFailure } from './scripts/configured-free-shopper-report.mjs'
+          const { projectPrimaryFailure } = await import('./scripts/issue-568-private-stop-proof-report.mjs')
           const roots = fs.existsSync('artifacts') ? fs.readdirSync('artifacts') : []
           const reports = roots.filter(name => name.startsWith('configured-shopper-'))
             .map(name => `artifacts/${name}/report.json`).filter(file => fs.existsSync(file))
@@ -103,6 +104,7 @@ jobs:
             cleanupFailures: Array.isArray(report.cleanupFailures)
               ? report.cleanupFailures.filter(value => ['browser-input-removal', 'service-cleanup'].includes(value))
               : [],
+            startupFailure: projectPrimaryFailure(report.failedAt, report.startupFailure).startupFailure,
             stats: counts,
             checks: safeChecks,
           }

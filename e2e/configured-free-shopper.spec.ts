@@ -3,7 +3,10 @@ import AxeBuilder from '@axe-core/playwright'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
 import { createLocalService, loopbackRequest } from '../scripts/configured-shopper-local.mjs'
-import { classifyConfiguredShopperRoute } from '../scripts/configured-free-shopper-report.mjs'
+import {
+  classifyConfiguredShopperRoute,
+  projectSafeBrowserFailure,
+} from '../scripts/configured-free-shopper-report.mjs'
 
 const input = JSON.parse(fs.readFileSync(process.env.CONFIGURED_SHOPPER_INPUT!, 'utf8'))
 const service = createLocalService({ resumeDirectory: input.directory })
@@ -73,6 +76,37 @@ async function submitLogin(page: Page, actor = 0) {
   expect(typeof token).toBe('string')
   await expect(page).not.toHaveURL(/\/auth\/sign-in/)
   return token as string
+}
+
+// Best-effort, synchronous projection: no new reads or waits on failure paths.
+function annotateRpcDiagnostic(testInfo: TestInfo, diagnostic: object) {
+  try {
+    const type = 'configured-rpc-diagnostic-v1'
+    if (testInfo.annotations.some((annotation) => annotation.type === type)) return
+    const safe = projectSafeBrowserFailure(
+      { diagnostic },
+      {
+        name: testInfo.title,
+        project: testInfo.project.name,
+      },
+    ).diagnostic
+    if (safe) testInfo.annotations.push({ type, description: JSON.stringify(safe) })
+  } catch {
+    // Annotation failure must never replace the original failure.
+  }
+}
+
+function isDiagnosticRpc(request: import('@playwright/test').Request, path: string) {
+  try {
+    const url = new URL(request.url())
+    return (
+      url.origin === new URL(input.endpoint).origin &&
+      url.pathname === path &&
+      request.method() === 'POST'
+    )
+  } catch {
+    return false
+  }
 }
 
 type RouteObservationCheckpoint =
@@ -616,9 +650,44 @@ test('sibling context, sign-out, and account switch deny private trip reads and 
   const sibling = await browser.newContext({ baseURL: input.origin })
   try {
     const other = await sibling.newPage()
-    const token = await login(other, 1, '/saved')
-    await expect(other.getByText('You have no saved stores yet.', { exact: true })).toBeVisible()
-    await expect(other.getByRole('link', { name: 'Clockwork Cabinet', exact: true })).toHaveCount(0)
+    const savedDiagnostic = {
+      version: 1,
+      kind: 'saved-load',
+      responseSeen: false,
+      status: null as number | null,
+      rowCount: null,
+      renderedBranch: 'unknown',
+    }
+    const recordSavedResponse = (response: import('@playwright/test').Response) => {
+      try {
+        if (!isDiagnosticRpc(response.request(), '/rest/v1/rpc/shopper_list_saved')) return
+        savedDiagnostic.responseSeen = true
+        savedDiagnostic.status = response.status()
+      } catch {
+        /* Passive observation must not affect the test. */
+      }
+    }
+    other.on('response', recordSavedResponse)
+    const token = await (async () => {
+      try {
+        const token = await login(other, 1, '/saved')
+        try {
+          await expect(
+            other.getByText('You have no saved stores yet.', { exact: true }),
+          ).toBeVisible()
+          savedDiagnostic.renderedBranch = 'empty'
+          await expect(
+            other.getByRole('link', { name: 'Clockwork Cabinet', exact: true }),
+          ).toHaveCount(0)
+        } catch (originalError) {
+          annotateRpcDiagnostic(testInfo, savedDiagnostic)
+          throw originalError
+        }
+        return token
+      } finally {
+        other.off('response', recordSavedResponse)
+      }
+    })()
     await other.goto(`/trips/${id}/plan`)
     await expect(
       other.getByRole('heading', { name: 'Trip unavailable', exact: true }),
@@ -1425,7 +1494,7 @@ test('anonymous Details sign-in failure preserves store and private data before 
 
 test('anonymous Details chooser rejects unavailable store and revoked session without writes', async ({
   page,
-}) => {
+}, testInfo) => {
   const id = crypto.randomUUID()
   const name = `Eligibility trip ${crypto.randomUUID()}`
   const snapshot = async () =>
@@ -1482,36 +1551,78 @@ test('anonymous Details chooser rejects unavailable store and revoked session wi
           `select state from app_private.active_sessions where session_id='${sessionId}' and user_id='${owner}';`,
         )
       ).trim()
-    const denyAdd = async (message: string) => {
-      const response = page.waitForResponse((result) => {
-        const url = new URL(result.url())
-        return (
-          url.origin === new URL(input.endpoint).origin &&
-          url.pathname === '/rest/v1/rpc/add_trip_store_stop' &&
-          result.request().method() === 'POST'
+    const denyAdd = async (message: string, phase: 'hidden-store' | 'revoked-session') => {
+      const diagnostic = {
+        version: 1,
+        kind: 'details-add',
+        phase,
+        requestSeen: false,
+        responseSeen: false,
+        status: null as number | null,
+        denialCode: null as string | null,
+      }
+      const recordRequest = (request: import('@playwright/test').Request) => {
+        if (isDiagnosticRpc(request, '/rest/v1/rpc/add_trip_store_stop'))
+          diagnostic.requestSeen = true
+      }
+      const recordResponse = (response: import('@playwright/test').Response) => {
+        try {
+          // The original waiter selects the first matching response for this phase.
+          if (diagnostic.responseSeen) return
+          if (!isDiagnosticRpc(response.request(), '/rest/v1/rpc/add_trip_store_stop')) return
+          diagnostic.requestSeen = true
+          diagnostic.responseSeen = true
+          diagnostic.status = response.status()
+        } catch {
+          /* Passive observation must not affect the test. */
+        }
+      }
+      page.on('request', recordRequest)
+      page.on('response', recordResponse)
+      try {
+        const response = page.waitForResponse((result) => {
+          const url = new URL(result.url())
+          return (
+            url.origin === new URL(input.endpoint).origin &&
+            url.pathname === '/rest/v1/rpc/add_trip_store_stop' &&
+            result.request().method() === 'POST'
+          )
+        })
+        await add.click()
+        const denied = await response
+        expect(denied.request().postDataJSON()).toEqual({ trip_id: id, store_id: A })
+        expect(denied.status()).toBe(400)
+        const error = await denied.json()
+        // Only classify a body that the original assertion path already read.
+        if (
+          error &&
+          typeof error === 'object' &&
+          ['store_stop_not_found', 'authorization_lost'].includes(error.message)
         )
-      })
-      await add.click()
-      const denied = await response
-      expect(denied.request().postDataJSON()).toEqual({ trip_id: id, store_id: A })
-      expect(denied.status()).toBe(400)
-      const error = await denied.json()
-      expect({ code: error.code, message: error.message }).toEqual({ code: 'P0001', message })
-      await expect(
-        page
-          .getByRole('alert')
-          .getByText("We couldn't update this trip. Please try again.", { exact: true }),
-      ).toBeVisible()
-      await expect(page).toHaveURL(`${input.origin}${target}`)
-      await expect(add).toBeEnabled()
-      const after = await snapshot()
-      expect(after).toEqual(before)
-      expect(after.trip.version).toBe(before.trip.version)
+          diagnostic.denialCode = error.message
+        expect({ code: error.code, message: error.message }).toEqual({ code: 'P0001', message })
+        await expect(
+          page
+            .getByRole('alert')
+            .getByText("We couldn't update this trip. Please try again.", { exact: true }),
+        ).toBeVisible()
+        await expect(page).toHaveURL(`${input.origin}${target}`)
+        await expect(add).toBeEnabled()
+        const after = await snapshot()
+        expect(after).toEqual(before)
+        expect(after.trip.version).toBe(before.trip.version)
+      } catch (originalError) {
+        annotateRpcDiagnostic(testInfo, diagnostic)
+        throw originalError
+      } finally {
+        page.off('request', recordRequest)
+        page.off('response', recordResponse)
+      }
     }
     await service.sql(`update app_public.stores set publication_state='hidden' where id='${A}';`)
     expect(await publication()).toBe('hidden')
     expect(await sessionState()).toBe('active')
-    await denyAdd('store_stop_not_found')
+    await denyAdd('store_stop_not_found', 'hidden-store')
 
     await service.sql(`update app_public.stores set publication_state='active' where id='${A}';`)
     expect(await publication()).toBe('active')
@@ -1521,7 +1632,7 @@ test('anonymous Details chooser rejects unavailable store and revoked session wi
     )
     expect(await sessionState()).toBe('revoked')
     expect(await publication()).toBe('active')
-    await denyAdd('authorization_lost')
+    await denyAdd('authorization_lost', 'revoked-session')
   } catch (error) {
     primaryFailure = error
   } finally {

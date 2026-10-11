@@ -6,11 +6,13 @@ import path from 'node:path'
 import { spawn } from 'node:child_process'
 import {
   createLocalService,
+  captureLocalStartupFailure,
   command,
   freePort,
   ROOT,
   stopChild,
 } from './configured-shopper-local.mjs'
+import { projectPrimaryFailure } from './issue-568-private-stop-proof-report.mjs'
 import { createRunDirectory, redact } from './configured-shopper-probe.mjs'
 import { browserReport, recordCleanupFailure } from './configured-free-shopper-report.mjs'
 
@@ -284,6 +286,11 @@ try {
 } catch (error) {
   report.status = 'failed'
   report.failedAt ??= report.stage
+  if (report.failedAt === 'local-services')
+    report.startupFailure = projectPrimaryFailure(
+      'local-services',
+      captureLocalStartupFailure(service?.run, error),
+    ).startupFailure
   report.errors.push(redact(error.message))
 } finally {
   await stopChild(server)
