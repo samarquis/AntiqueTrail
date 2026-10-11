@@ -1567,17 +1567,19 @@ test('anonymous Details chooser rejects unavailable store and revoked session wi
   const validationRoute = async (route: import('@playwright/test').Route) => {
     if (route.request().method() !== 'POST') return route.continue()
     const work = (async () => {
-      const response = await route.fetch()
-      // Check after fetch so requests begun before revocation also participate.
-      if (holdValidation) await validationGate
-      await route.fulfill({ response })
+      try {
+        const response = await route.fetch()
+        // Check after fetch so requests begun before revocation also participate.
+        if (holdValidation) await validationGate
+        await route.fulfill({ response })
+      } catch (error) {
+        validationFailure ??= error
+        await route.abort().catch(() => undefined)
+      }
     })()
     validationWork.add(work)
     try {
       await work
-    } catch (error) {
-      validationFailure ??= error
-      await route.abort().catch(() => undefined)
     } finally {
       validationWork.delete(work)
     }
