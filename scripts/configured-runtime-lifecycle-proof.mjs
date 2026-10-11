@@ -19,6 +19,9 @@ export async function runLifecycleProof({
   eventsFactory = startLifecycleEvents,
   now = Date.now,
   budgetMs = 1080000,
+  cleanupBudgetMs = 180000,
+  collectorBudgetMs = 6000,
+  cancellationGraceMs = 2000,
 }) {
   if (!/^[a-f0-9]{40}$/.test(sourceSha ?? '')) throw new Error('Exact source SHA required')
   const controller = new AbortController(),
@@ -33,24 +36,62 @@ export async function runLifecycleProof({
     serving: [],
     cleanup: 'not-started',
     cleanupRecovery: false,
+    cleanupTimedOut: false,
     lifecycle: null,
   }
   let service,
     collector,
     cleanupAt = null,
-    deadline = false
+    deadline = false,
+    finalizing = false,
+    activeCleanup
   const timer = setTimeout(() => {
     deadline = true
     controller.abort()
   }, budgetMs)
-  const interrupt = () => controller.abort()
+  const interrupt = () => {
+    controller.abort()
+    activeCleanup?.abort()
+  }
+  async function bounded(operation, duration) {
+    const cancellation = new AbortController()
+    activeCleanup = cancellation
+    let timedOut = false,
+      timeout,
+      grace
+    const expired = new Promise((resolve) => {
+      timeout = setTimeout(() => {
+        timedOut = true
+        cancellation.abort()
+        grace = setTimeout(() => resolve({ value: 'failed' }), cancellationGraceMs)
+      }, duration)
+    })
+    try {
+      const result = await Promise.race([
+        Promise.resolve()
+          .then(() => operation(cancellation.signal))
+          .then(
+            (value) => ({ value }),
+            () => ({ value: 'failed' }),
+          ),
+        expired,
+      ])
+      return { value: result.value, timedOut }
+    } finally {
+      clearTimeout(timeout)
+      clearTimeout(grace)
+      cancellation.abort()
+      activeCleanup = undefined
+    }
+  }
   process.on('SIGINT', interrupt)
   process.on('SIGTERM', interrupt)
   try {
     service = serviceFactory({
       signal: controller.signal,
       onServingLifecycle(value) {
-        if (report.serving.length >= 2 || !['spawn', 'exit'].includes(value.event)) return
+        if (finalizing || report.serving.length >= 2 || !['spawn', 'exit'].includes(value.event))
+          return
         report.serving.push({
           event: value.event,
           elapsedMs: Math.max(0, now() - startedAt),
@@ -85,35 +126,41 @@ export async function runLifecycleProof({
   } finally {
     clearTimeout(timer)
     cleanupAt = now()
-    collector?.beginCleanup(cleanupAt)
-    if (service) {
-      try {
-        report.cleanup = await service.cleanup()
-      } catch {
-        report.cleanup = 'failed'
-      }
-      // An aborted startup signal can also reject the original helper's cleanup commands.
-      // Recovery uses its existing ownership-checked cleanup-only interface, never another start.
-      if (report.cleanup !== 'removed') {
-        report.cleanupRecovery = true
-        try {
-          report.cleanup = await serviceFactory({
-            resumeDirectory: service.run.directory,
-          }).cleanup()
-        } catch {
-          report.cleanup = 'failed'
+    try {
+      collector?.beginCleanup(cleanupAt)
+      if (service) {
+        const primary = await bounded((signal) => service.cleanup({ signal }), cleanupBudgetMs)
+        report.cleanup = primary.value === 'removed' && !primary.timedOut ? 'removed' : 'failed'
+        report.cleanupTimedOut = primary.timedOut
+        // Never overlap recovery with a timed-out cleanup, even if cancellation is slow.
+        if (report.cleanup !== 'removed' && !primary.timedOut) {
+          report.cleanupRecovery = true
+          const recovery = await bounded(
+            (signal) =>
+              serviceFactory({ resumeDirectory: service.run.directory }).cleanup({ signal }),
+            cleanupBudgetMs,
+          )
+          report.cleanup = recovery.value === 'removed' && !recovery.timedOut ? 'removed' : 'failed'
+          report.cleanupTimedOut = recovery.timedOut
         }
       }
-    }
-    if (collector) {
+    } catch {
+      report.cleanup = 'failed'
+    } finally {
       try {
-        report.lifecycle = await collector.stop()
-      } catch {
-        report.lifecycle = { capture: 'incomplete', failure: 'collector-stop' }
+        if (collector) {
+          const stopped = await bounded((signal) => collector.stop({ signal }), collectorBudgetMs)
+          report.lifecycle =
+            !stopped.timedOut && stopped.value && typeof stopped.value === 'object'
+              ? stopped.value
+              : { capture: 'incomplete', failure: 'collector-stop' }
+        }
+      } finally {
+        finalizing = true
+        process.off('SIGINT', interrupt)
+        process.off('SIGTERM', interrupt)
       }
     }
-    process.off('SIGINT', interrupt)
-    process.off('SIGTERM', interrupt)
   }
   report.deadlineReached = deadline
   report.elapsedMs = Math.max(0, now() - startedAt)

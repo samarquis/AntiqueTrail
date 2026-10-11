@@ -1,8 +1,11 @@
+/* global AbortController */
+import process from 'node:process'
+import { stopChild, command } from './configured-shopper-local.mjs'
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { EventEmitter } from 'node:events'
 import { PassThrough } from 'node:stream'
-import { setImmediate } from 'node:timers'
+import { setImmediate, setTimeout, clearTimeout } from 'node:timers'
 import {
   createLifecycleCapture,
   startLifecycleEvents,
@@ -260,4 +263,167 @@ test('invalid SHA rejected before creating service', async () => {
     runLifecycleProof({ sourceSha: 'bad', serviceFactory: () => assert.fail('must not create') }),
     /Exact source SHA/,
   )
+})
+
+for (const recovery of [false, true])
+  test(
+    'hung ' +
+      (recovery ? 'recovery' : 'primary') +
+      ' cleanup aborts, stops collector and restores listeners',
+    async () => {
+      const before = ['SIGINT', 'SIGTERM'].map((name) => process.listenerCount(name))
+      let starts = 0,
+        attempts = 0,
+        stopped = 0,
+        cancelled = false,
+        lateFinish
+      const report = await runLifecycleProof({
+        sourceSha,
+        cleanupBudgetMs: 2,
+        cancellationGraceMs: 2,
+        serviceFactory: () => ({
+          run,
+          start: async () => {
+            starts++
+          },
+          cleanup: ({ signal }) => {
+            attempts++
+            if (recovery && attempts === 1) throw new Error('initial cleanup failed')
+            signal.addEventListener(
+              'abort',
+              () => {
+                cancelled = true
+              },
+              { once: true },
+            )
+            return new Promise((resolve) => {
+              lateFinish = resolve
+            })
+          },
+        }),
+        eventsFactory: async () => ({
+          beginCleanup() {},
+          stop: async () => {
+            stopped++
+            return { capture: 'closed' }
+          },
+        }),
+      })
+      assert.equal(report.status, 'diagnostic-failed')
+      assert.equal(report.startupOutcome, 'ready')
+      assert.equal(report.cleanup, 'failed')
+      assert.equal(report.cleanupTimedOut, true)
+      assert.equal(report.cleanupRecovery, recovery)
+      assert.equal(cancelled, true)
+      assert.equal(starts, 1)
+      assert.equal(attempts, recovery ? 2 : 1)
+      assert.equal(stopped, 1)
+      assert.deepEqual(
+        ['SIGINT', 'SIGTERM'].map((name) => process.listenerCount(name)),
+        before,
+      )
+      const frozen = JSON.stringify(report)
+      lateFinish('removed')
+      await new Promise((resolve) => setImmediate(resolve))
+      assert.equal(JSON.stringify(report), frozen)
+    },
+  )
+test('cancellation-aware cleanup settles before receipt and blocks further mutation', async () => {
+  let cancelled = false,
+    mutated = false
+  const f = fixture()
+  f.serviceFactory = () => ({
+    run,
+    start: async () => {},
+    cleanup: async ({ signal }) => {
+      await new Promise((resolve) =>
+        signal.addEventListener(
+          'abort',
+          () => {
+            cancelled = true
+            resolve()
+          },
+          { once: true },
+        ),
+      )
+      signal.throwIfAborted()
+      mutated = true
+      return 'removed'
+    },
+  })
+  const report = await runLifecycleProof({
+    sourceSha,
+    ...f,
+    cleanupBudgetMs: 2,
+    cancellationGraceMs: 10,
+  })
+  assert.equal(cancelled, true)
+  assert.equal(mutated, false)
+  assert.equal(report.cleanupTimedOut, true)
+  assert.equal(report.status, 'diagnostic-failed')
+})
+test('hung collector stop receives cancellation and cannot retain signal listeners', async () => {
+  const before = process.listenerCount('SIGTERM')
+  let cancelled = false
+  const f = fixture()
+  f.eventsFactory = async () => ({
+    beginCleanup() {},
+    stop: ({ signal }) =>
+      new Promise(() => {
+        signal.addEventListener(
+          'abort',
+          () => {
+            cancelled = true
+          },
+          { once: true },
+        )
+      }),
+  })
+  const report = await runLifecycleProof({
+    sourceSha,
+    ...f,
+    collectorBudgetMs: 2,
+    cancellationGraceMs: 2,
+  })
+  assert.equal(report.status, 'diagnostic-failed')
+  assert.equal(report.lifecycle.capture, 'incomplete')
+  assert.equal(cancelled, true)
+  assert.equal(process.listenerCount('SIGTERM'), before)
+})
+test('owned child cleanup escalates to KILL on cancellation and removes listeners', async () => {
+  const child = new EventEmitter()
+  child.exitCode = null
+  child.signalCode = null
+  const signals = []
+  child.kill = (signal) => signals.push(signal ?? 'SIGTERM')
+  const controller = new AbortController()
+  const stopping = stopChild(child, { signal: controller.signal })
+  controller.abort()
+  await assert.rejects(stopping, /cleanup aborted/)
+  assert.deepEqual(signals, ['SIGTERM', 'SIGKILL'])
+  assert.equal(child.listenerCount('close'), 0)
+})
+test('cancelled cleanup command cannot spawn its next subprocess', () => {
+  const controller = new AbortController()
+  controller.abort()
+  assert.throws(
+    () => command('must-not-spawn', [], { signal: controller.signal, killSignal: 'SIGKILL' }),
+    { name: 'AbortError' },
+  )
+})
+
+test('owned cleanup subprocess is forcibly cancelled and settles', async () => {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 100)
+  try {
+    await assert.rejects(
+      command(process.execPath, ['-e', "process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"], {
+        signal: controller.signal,
+        killSignal: 'SIGKILL',
+      }),
+    )
+    assert.equal(controller.signal.aborted, true)
+  } finally {
+    clearTimeout(timer)
+  }
 })

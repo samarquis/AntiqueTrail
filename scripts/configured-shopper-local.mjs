@@ -248,7 +248,30 @@ export function localProjectConfig(source, ports, { signupJourney = false } = {}
     ].join('\n')
   return `${config}\n[edge_runtime]\nenabled = true\ninspector_port = ${ports.inspector}\n`
 }
-export async function stopChild(child) {
+export async function stopChild(child, { signal } = {}) {
+  if (signal) {
+    if (!child || child.exitCode !== null || child.signalCode !== null) return
+    return new Promise((resolve, reject) => {
+      const finish = () => {
+        signal.removeEventListener('abort', abort)
+        resolve()
+      }
+      const abort = () => {
+        child.kill('SIGKILL')
+        child.stdin?.destroy()
+        child.stdout?.destroy()
+        child.stderr?.destroy()
+        child.unref?.()
+        signal.removeEventListener('abort', abort)
+        child.removeListener('close', finish)
+        reject(new Error('Child cleanup aborted'))
+      }
+      child.once('close', finish)
+      signal.addEventListener('abort', abort, { once: true })
+      if (signal.aborted) abort()
+      else child.kill()
+    })
+  }
   if (!child || child.exitCode !== null || child.signalCode !== null) return
   const closed = new Promise((resolve) => child.once('close', resolve))
   child.kill()
@@ -257,13 +280,15 @@ export async function stopChild(child) {
 export function command(
   file,
   args,
-  { cwd = ROOT, input, timeout = 600_000, env = process.env, signal } = {},
+  { cwd = ROOT, input, timeout = 600_000, env = process.env, signal, killSignal = 'SIGTERM' } = {},
 ) {
+  if (killSignal === 'SIGKILL') signal?.throwIfAborted()
   return new Promise((resolve, reject) => {
     const child = spawn(file, args, {
       cwd,
       env,
       signal,
+      killSignal,
       windowsHide: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     })
@@ -284,6 +309,14 @@ export function command(
       child.kill()
     }, timeout)
     child.on('error', (error) => {
+      if (signal?.aborted && killSignal === 'SIGKILL' && child.pid) {
+        clearTimeout(timer)
+        child.stdin.destroy()
+        child.stdout.destroy()
+        child.stderr.destroy()
+        child.unref()
+        return
+      }
       if (settled) return
       settled = true
       clearTimeout(timer)
@@ -301,7 +334,7 @@ export function command(
         reject(error)
         return
       }
-      if (code === 0) resolve(stdout)
+      if (code === 0 && !(signal?.aborted && killSignal === 'SIGKILL')) resolve(stdout)
       else {
         let summary = ''
         try {
@@ -332,12 +365,12 @@ export function command(
   })
 }
 let binaryPromise
-async function cliBinary(signal) {
+async function cliBinary(signal, killSignal) {
   if (binaryPromise) return binaryPromise
-  binaryPromise = resolveCliBinary(signal)
+  binaryPromise = resolveCliBinary(signal, killSignal)
   return binaryPromise
 }
-async function resolveCliBinary(signal) {
+async function resolveCliBinary(signal, killSignal) {
   const npx = path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npx-cli.js')
   const args = [
     '--yes',
@@ -350,7 +383,7 @@ async function resolveCliBinary(signal) {
   const search = await command(
     process.platform === 'win32' ? process.execPath : 'npx',
     process.platform === 'win32' ? [npx, ...args] : args,
-    { signal },
+    { signal, killSignal },
   )
   const platform = { win32: 'windows', darwin: 'darwin', linux: 'linux' }[process.platform]
   for (const entry of search.trim().split(path.delimiter)) {
@@ -711,9 +744,9 @@ export function createLocalService({
       { input },
     )
   }
-  async function verifyContainers(checkBindings = true) {
+  async function verifyContainers(checkBindings = true, execute = command) {
     const ids = (
-      await command('docker', [
+      await execute('docker', [
         'ps',
         '-aq',
         '--filter',
@@ -724,7 +757,7 @@ export function createLocalService({
       .split(/\s+/)
       .filter(Boolean)
     if (!ids.length) return []
-    const containers = JSON.parse(await command('docker', ['inspect', ...ids]))
+    const containers = JSON.parse(await execute('docker', ['inspect', ...ids]))
     for (const c of containers) {
       if (
         c.Config.Labels['com.supabase.cli.project'] !== projectId ||
@@ -992,23 +1025,31 @@ export function createLocalService({
     runAtLocalStartupStep(run, 'complete', () => {})
     return run
   }
-  async function cleanup() {
+  async function cleanup({ signal: cleanupSignal } = {}) {
+    const execute = (file, args, options = {}) => {
+      cleanupSignal?.throwIfAborted()
+      return command(file, args, {
+        ...options,
+        ...(cleanupSignal ? { signal: cleanupSignal, killSignal: 'SIGKILL' } : {}),
+      })
+    }
+    const stopServing = () => stopChild(serving, { signal: cleanupSignal })
     if (cleaned) return 'removed'
     try {
       validateOwner(run)
-      await stopChild(serving)
+      await stopServing()
       if (networkCreated) {
         const networkId = (
-          await command('docker', ['network', 'ls', '-q', '--filter', 'name=^' + projectId + '$'])
+          await execute('docker', ['network', 'ls', '-q', '--filter', 'name=^' + projectId + '$'])
         ).trim()
         if (networkId) {
-          const network = JSON.parse(await command('docker', ['network', 'inspect', networkId]))[0]
+          const network = JSON.parse(await execute('docker', ['network', 'inspect', networkId]))[0]
           if (network.Name !== projectId || network.Labels?.['antique.probe'] !== id)
             throw new Error('Network ownership mismatch')
         }
-        await verifyContainers(false)
+        await verifyContainers(false, execute)
         const volumeIds = (
-          await command('docker', [
+          await execute('docker', [
             'volume',
             'ls',
             '-q',
@@ -1020,7 +1061,7 @@ export function createLocalService({
           .split(/\s+/)
           .filter(Boolean)
         if (volumeIds.length) {
-          const volumes = JSON.parse(await command('docker', ['volume', 'inspect', ...volumeIds]))
+          const volumes = JSON.parse(await execute('docker', ['volume', 'inspect', ...volumeIds]))
           if (
             volumes.some(
               (v) =>
@@ -1031,19 +1072,33 @@ export function createLocalService({
             throw new Error('Volume ownership mismatch')
         }
         try {
-          await cli(['stop', '--workdir', directory, '--project-id', projectId, '--no-backup'])
+          const stopArgs = [
+            'stop',
+            '--workdir',
+            directory,
+            '--project-id',
+            projectId,
+            '--no-backup',
+          ]
+          if (cleanupSignal) await execute(await cliBinary(cleanupSignal, 'SIGKILL'), stopArgs)
+          else await cli(stopArgs)
         } catch (error) {
           if (!String(error).includes('LegacyStopContainerPruneError')) throw error
-          const ownedContainers = await verifyContainers(false)
+          const ownedContainers = await verifyContainers(false, execute)
           if (ownedContainers.length)
-            await runCommand('docker', ['rm', '--force', ...ownedContainers.map((c) => c.Id)])
-          if (volumeIds.length) await runCommand('docker', ['volume', 'rm', ...volumeIds])
+            await (cleanupSignal ? execute : runCommand)('docker', [
+              'rm',
+              '--force',
+              ...ownedContainers.map((c) => c.Id),
+            ])
+          if (volumeIds.length)
+            await (cleanupSignal ? execute : runCommand)('docker', ['volume', 'rm', ...volumeIds])
         }
-        if ((await verifyContainers(false)).length)
+        if ((await verifyContainers(false, execute)).length)
           throw new Error('Run containers remain after stop')
         if (
           (
-            await command('docker', [
+            await execute('docker', [
               'volume',
               'ls',
               '-q',
@@ -1054,10 +1109,10 @@ export function createLocalService({
         )
           throw new Error('Run volumes remain after stop')
         if (networkId) {
-          await command('docker', ['network', 'rm', projectId])
+          await execute('docker', ['network', 'rm', projectId])
           if (
             (
-              await command('docker', [
+              await execute('docker', [
                 'network',
                 'ls',
                 '-q',
@@ -1071,11 +1126,16 @@ export function createLocalService({
       }
       cleaned = true
     } finally {
-      await stopChild(serving)
-      if (proxy) await proxy.close()
+      try {
+        await stopServing()
+      } finally {
+        if (proxy) await proxy.close({ signal: cleanupSignal })
+      }
+      cleanupSignal?.throwIfAborted()
       const owned = validateOwner(run)
       fs.rmSync(path.join(owned, 'supabase/functions/.env'), { force: true })
     }
+    cleanupSignal?.throwIfAborted()
     if (cleaned) {
       const owned = validateOwner(run)
       cleaned = false

@@ -158,20 +158,16 @@ export async function startLifecycleEvents({ run, startedAt, onFailure, spawnPro
   })
   return {
     beginCleanup: capture.beginCleanup,
-    async stop() {
-      closing = true
-      if (!closed) child.kill('SIGTERM')
-      let timer
-      await Promise.race([
-        finished,
-        new Promise((resolve) => {
-          timer = setTimeout(resolve, 2000)
-        }),
-      ])
-      clearTimeout(timer)
-      if (!closed) {
-        capture.fail('collector-stop')
-        child.kill('SIGKILL')
+    async stop({ signal } = {}) {
+      const abort = () => {
+        if (!closed) child.kill('SIGKILL')
+      }
+      signal?.addEventListener('abort', abort, { once: true })
+      if (signal?.aborted) abort()
+      try {
+        closing = true
+        if (!closed) child.kill('SIGTERM')
+        let timer
         await Promise.race([
           finished,
           new Promise((resolve) => {
@@ -179,10 +175,23 @@ export async function startLifecycleEvents({ run, startedAt, onFailure, spawnPro
           }),
         ])
         clearTimeout(timer)
-      }
-      return {
-        capture: closed && !capture.snapshot().failure ? 'closed' : 'incomplete',
-        ...capture.snapshot(),
+        if (!closed) {
+          capture.fail('collector-stop')
+          child.kill('SIGKILL')
+          await Promise.race([
+            finished,
+            new Promise((resolve) => {
+              timer = setTimeout(resolve, 2000)
+            }),
+          ])
+          clearTimeout(timer)
+        }
+        return {
+          capture: closed && !capture.snapshot().failure ? 'closed' : 'incomplete',
+          ...capture.snapshot(),
+        }
+      } finally {
+        signal?.removeEventListener('abort', abort)
       }
     },
   }
