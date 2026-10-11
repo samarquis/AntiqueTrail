@@ -315,7 +315,6 @@ export function command(
         child.stdout.destroy()
         child.stderr.destroy()
         child.unref()
-        return
       }
       if (settled) return
       settled = true
